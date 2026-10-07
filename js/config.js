@@ -66,7 +66,7 @@ MF.config = {
   pond: {
     x: 40, y: 230, rx: 30, ry: 17,
     stand: { x: 78, y: 226 },
-    throwCost: [25, 40, 60, 90, 130, 190, 275, 400, 550, 750],
+    throwCost: [6, 10, 15, 22, 32, 48, 70, 100, 140, 190],
     toss: 0.45,
     dive: 1.3,
     relicChance: 0.1,
