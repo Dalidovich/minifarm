@@ -239,6 +239,48 @@ button {
   font-weight: 600;
 }
 
+.order.ready {
+  background: #e4f5c8;
+}
+
+.o-ok {
+  display: block;
+  width: 100%;
+  height: 14px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 10px;
+}
+
+.order.ready .o-top {
+  margin-bottom: 1px;
+}
+
+.orders .head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.stock {
+  display: flex;
+  align-items: center;
+  padding: 1px 4px;
+  background: #fff3d1;
+  border: 2px solid var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stock:hover {
+  filter: brightness(1.07);
+}
+
+.stock.full {
+  background: #f6c9b8;
+}
+
 .o-x {
   width: 16px;
   height: 16px;
@@ -704,8 +746,44 @@ img.sil {
 }
 
 .pond-facts,
+.barn-facts,
 .set-head {
   grid-column: 1 / -1;
+}
+
+.barn-facts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 8px;
+  background: #f6e7c1;
+  border: 2px solid var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.barn-facts .btn {
+  flex: none;
+}
+
+.item.hot {
+  background: #fdf0c0;
+}
+
+.i-act.sell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.i-act.sell .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  font-size: 13px;
 }
 
 .pond-facts {
