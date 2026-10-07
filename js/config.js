@@ -47,6 +47,15 @@ MF.config = {
   orderSkipDelay: 30,
   dailyBonus: [1.5, 1.75, 2],
   dailyPool: 4,
+  night: [0.67, 0.96],
+  nightGrow: 1.25,
+  bees: {
+    count: 2, visit: [20, 40], work: 1.5, speed: 34, bonus: 2,
+    spots: [[22, 80], [62, 80], [33, 128], [54, 152], [84, 182], [300, 182], [340, 206]]
+  },
+  fireflies: { max: 5, every: [5, 12], life: [14, 24], coins: [1, 3] },
+  catGift: { every: [150, 300], spot: { x: 57, y: 90 }, coin: [2, 5], gem: 40, gemChance: 0.1, cropChance: 0.35, petSkip: 20, petCooldown: 30 },
+  hat: { warn: 40, flight: 1.1, zone: { x: 62, y: 134, w: 40, h: 44 } },
   crops: [
     { id: 'radish', level: 1, cost: 2, sell: 6, time: 20, xp: 1 },
     { id: 'carrot', level: 2, cost: 5, sell: 12, time: 40, xp: 2 },

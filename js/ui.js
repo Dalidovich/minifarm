@@ -253,6 +253,10 @@
     if (p.type === 'well') return t('tip.well');
     if (p.type === 'egg') return t('tip.egg');
     if (p.type === 'house') return t('tip.house');
+    if (p.type === 'firefly') return t('tip.firefly');
+    if (p.type === 'hat') return t('tip.hat');
+    if (p.type === 'cat') return t('tip.cat');
+    if (p.type === 'gift') return t('tip.gift');
     if (p.type === 'tree') return t(s.trees[p.index].apples ? 'tip.tree' : 'tip.treeEmpty');
     const plot = s.plots[p.index];
     if (p.action === 'till') return t('act.till');
@@ -263,9 +267,10 @@
         ico('coin', 'tiny') + cost + '</span>';
     }
     const name = t('crop.' + plot.crop);
-    if (p.action === 'harvest') return t('act.harvest', { name: name });
+    const pollen = plot.pollen ? '<br><small>' + t('info.pollen') + '</small>' : '';
+    if (p.action === 'harvest') return t('act.harvest', { name: name }) + pollen;
     const pct = Math.floor((plot.growth / G.cropById[plot.crop].time) * 100);
-    const info = t('info.growing', { name: name, pct: pct });
+    const info = t('info.growing', { name: name, pct: pct }) + (plot.pollen ? ' · ' + t('info.pollen') : '');
     const ripe = ripeText(plot);
     if (p.action === 'water') return t('act.water') + '<br><small>' + info + (ripe ? '<br>' + ripe : '') + '</small>';
     return info + (ripe ? '<br><small>' + ripe + '</small>' : '');
