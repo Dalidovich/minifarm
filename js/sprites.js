@@ -976,13 +976,14 @@
     wood: '#a8703a', metal: '#c3ccd2', can: '#5bb4e5', canDark: '#3f7fc4', water: '#8fd3f4',
     seed: '#f2e2b0', leaf: '#a4de6a'
   };
+  let look = FARMER;
   const FARMER_W = 24;
   const FARMER_H = 24;
   const FARMER_OX = 3;
   const FARMER_OY = 3;
 
   function farmerFront(U, L, o, back) {
-    const F = FARMER;
+    const F = look;
     const liftL = o.legs === 1 ? 1 : 0;
     const liftR = o.legs === 2 ? 1 : 0;
     L(F.overallsDark, 5, 16, 3, 2 - liftL);
@@ -1027,7 +1028,7 @@
   }
 
   function farmerTool(U, L, o) {
-    const F = FARMER;
+    const F = look;
     const raised = o.arm === 'up';
     if (o.tool === 'hoe' && raised) {
       U(F.wood, 13, -2, 1, 12);
@@ -1059,7 +1060,7 @@
   }
 
   function farmerSide(U, L, o) {
-    const F = FARMER;
+    const F = look;
     if (o.legs) {
       L(F.overallsDark, 5, 16, 3, 1);
       L(F.overallsDark, 4, 17, 3, 1);
@@ -1145,8 +1146,23 @@
     return out;
   }
 
-  const farmerRight = farmerSet('right');
-  S.farmer = { down: farmerSet('down'), up: farmerSet('up'), right: farmerRight, left: flipSet(farmerRight) };
+  function farmerSets(colors) {
+    look = Object.assign({}, FARMER, colors);
+    const right = farmerSet('right');
+    return { down: farmerSet('down'), up: farmerSet('up'), right: right, left: flipSet(right) };
+  }
+
+  S.farmer = farmerSets({});
+  S.workers = {
+    henhand: farmerSets({
+      hat: '#fff7e6', hatDark: '#d9cdb8', band: '#5bb4e5', hair: '#d6a021',
+      shirt: '#5bb4e5', overalls: '#a8703a', overallsDark: '#7d4e24'
+    }),
+    picker: farmerSets({
+      hat: '#6dbf4b', hatDark: '#4f9a3f', band: '#fff7e6', hair: '#3b2a22',
+      shirt: '#f2cf5b', overalls: '#4f9a3f', overallsDark: '#3a7a30'
+    })
+  };
   S.farmerAnchorY = FARMER_OY + 20;
 
   S.shopIcons = {
@@ -1160,7 +1176,9 @@
     market: S.icons.market,
     sign: S.icons.sign,
     feed: S.icons.feed,
+    henhand: S.workers.henhand.down.idle[0],
     shears: S.icons.shears,
+    picker: S.workers.picker.down.idle[0],
     hammock: S.icons.hammock,
     almanac: S.icons.almanac,
     ducks: duckRight[0],

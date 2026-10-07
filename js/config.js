@@ -22,6 +22,12 @@ MF.config = {
   farmerHome: { x: 42, y: 90 },
   farmerDoor: { x: 42, y: 82 },
   farmerSpeed: [70, 90, 115],
+  workerSpeed: 45,
+  workerRest: 1.5,
+  workers: [
+    { id: 'henhand', home: { x: 330, y: 126 } },
+    { id: 'picker', home: { x: 304, y: 182 } }
+  ],
   actTime: 0.4,
   actHit: 0.18,
   levelXp: [15, 40, 100, 220, 450, 800, 1300, 2000, 3000],
@@ -82,8 +88,10 @@ MF.config = {
     { id: 'sign', levels: [{ cost: 500, level: 3 }, { cost: 3500, level: 6 }] },
     { id: 'coop', levels: [{ cost: 300, level: 3 }, { cost: 400, level: 3 }, { cost: 700, level: 4 }, { cost: 1200, level: 5 }] },
     { id: 'feed', requires: 'coop', levels: [{ cost: 500, level: 4 }, { cost: 2500, level: 6 }] },
+    { id: 'henhand', requires: 'coop', levels: [{ cost: 1500, level: 5 }] },
     { id: 'trees', levels: [{ cost: 400, level: 4 }, { cost: 900, level: 5 }, { cost: 2000, level: 6 }] },
     { id: 'shears', requires: 'trees', levels: [{ cost: 700, level: 5 }, { cost: 3000, level: 7 }] },
+    { id: 'picker', requires: 'trees', levels: [{ cost: 2500, level: 6 }] },
     { id: 'house', levels: [{ cost: 2500, level: 5 }, { cost: 20000, level: 8 }] },
     { id: 'clover', levels: [{ cost: 200, level: 2 }, { cost: 1500, level: 4 }, { cost: 6000, level: 6 }] },
     { id: 'hammock', levels: [{ cost: 400, level: 3 }, { cost: 2500, level: 6 }] },

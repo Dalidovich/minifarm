@@ -10,7 +10,7 @@
   C.upgrades.forEach(function (u) { upById[u.id] = u; });
 
   const G = (MF.game = {
-    state: null, chickens: [], ducks: [], cat: null, bees: [], fireflies: [], hatFlight: 0, farmer: null, queue: [],
+    state: null, chickens: [], ducks: [], cat: null, bees: [], fireflies: [], hatFlight: 0, farmer: null, workers: [], queue: [],
     cropById: cropById, upById: upById, maxLevel: MAX_LEVEL
   });
 
@@ -585,8 +585,7 @@
     };
   }
 
-  function standFor(task) {
-    const f = G.farmer;
+  function standFor(task, f) {
     if (task.type === 'plot') {
       const pos = plotPos(task.index);
       const left = f.x < pos.x + 8;
@@ -634,7 +633,7 @@
       return;
     }
     f.task = task;
-    f.stand = standFor(task);
+    f.stand = standFor(task, f);
     f.path = findPath(f.x, f.y, f.stand.x, f.stand.y);
     f.state = 'walk';
   }
@@ -677,9 +676,8 @@
     }
   }
 
-  function walkFarmer(dt) {
-    const f = G.farmer;
-    let remaining = C.farmerSpeed[G.state.up.boots] * dt;
+  function followPath(f, distance) {
+    let remaining = distance;
     while (remaining > 0 && f.path.length) {
       const p = f.path[0];
       const dx = p.x - f.x;
@@ -700,6 +698,11 @@
         remaining = 0;
       }
     }
+  }
+
+  function walkFarmer(dt) {
+    const f = G.farmer;
+    followPath(f, C.farmerSpeed[G.state.up.boots] * dt);
     f.step += dt * 9;
     f.dustT += dt;
     if (f.dustT > 0.22) {
@@ -723,6 +726,88 @@
     if (f.state === 'walk') return walkFarmer(dt);
     f.idleT += dt;
     if (G.queue.length) startTask();
+  }
+
+  function freshWorker(cfg) {
+    return {
+      id: cfg.id, home: cfg.home, x: cfg.home.x, y: cfg.home.y, dir: 'down', state: 'idle', path: [], task: null, stand: null,
+      tool: null, actT: 0, hit: false, step: 0, idleT: 0, rest: 0
+    };
+  }
+
+  function workerTasks(w) {
+    const s = G.state;
+    if (w.id === 'henhand') {
+      return s.eggs.map(function (egg) { return { type: 'egg', egg: egg, x: egg.x, y: egg.y }; });
+    }
+    const tasks = [];
+    s.trees.forEach(function (tree, i) {
+      if (tree.apples) tasks.push({ type: 'tree', index: i, x: C.treeSpots[i][0], y: C.treeSpots[i][1] });
+    });
+    return tasks;
+  }
+
+  function nearestTask(w) {
+    let best = null;
+    let bestDist = Infinity;
+    workerTasks(w).forEach(function (task) {
+      const dist = Math.abs(task.x - w.x) + Math.abs(task.y - w.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = task;
+      }
+    });
+    return best;
+  }
+
+  function sendWorker(w, task, stand) {
+    w.task = task;
+    w.stand = stand;
+    w.path = findPath(w.x, w.y, stand.x, stand.y);
+    w.state = 'walk';
+  }
+
+  function restWorker(w, rest) {
+    w.task = null;
+    w.state = 'idle';
+    w.idleT = 0;
+    w.rest = rest;
+  }
+
+  function workerCollect(task) {
+    if (!taskValid(task)) return;
+    if (task.type === 'tree') pickApples(task.index);
+    else collectEgg(G.state.eggs.indexOf(task.egg));
+  }
+
+  function updateWorker(w, dt) {
+    if (w.state === 'act') {
+      w.actT += dt;
+      if (!w.hit && w.actT >= C.actHit) {
+        w.hit = true;
+        workerCollect(w.task);
+      }
+      if (w.actT >= C.actTime) restWorker(w, C.workerRest);
+      return;
+    }
+    if (w.state === 'walk') {
+      followPath(w, C.workerSpeed * dt);
+      w.step += dt * 9;
+      if (w.path.length) return;
+      if (w.stand.dir) w.dir = w.stand.dir;
+      if (!w.task || !taskValid(w.task)) return restWorker(w, 0);
+      w.tool = w.task.type === 'egg' ? 'grab' : null;
+      w.state = 'act';
+      w.actT = 0;
+      w.hit = false;
+      return;
+    }
+    w.idleT += dt;
+    w.rest -= dt;
+    if (w.rest > 0) return;
+    const task = nearestTask(w);
+    if (task) return sendWorker(w, task, standFor(task, w));
+    if (Math.abs(w.x - w.home.x) > 1 || Math.abs(w.y - w.home.y) > 1) sendWorker(w, null, { x: w.home.x, y: w.home.y, dir: 'down' });
   }
 
   function enqueue(task) {
@@ -879,6 +964,9 @@
     const bees = s.up.flowers ? C.bees.count : 0;
     while (G.bees.length < bees) G.bees.push(freshBee());
     G.bees.length = bees;
+    G.workers = C.workers.filter(function (cfg) { return s.up[cfg.id]; }).map(function (cfg) {
+      return G.workers.filter(function (w) { return w.id === cfg.id; })[0] || freshWorker(cfg);
+    });
   }
 
   function beeSpot() {
@@ -1146,7 +1234,10 @@
     updatePlots(dt, quiet);
     updateAnimals(dt, quiet);
     updateHat(dt);
-    if (!quiet) updateFarmer(dt);
+    if (!quiet) {
+      updateFarmer(dt);
+      G.workers.forEach(function (w) { updateWorker(w, dt); });
+    }
     updateOrders(dt);
     if (s.tut === 4) {
       s.tutTimer += dt;
@@ -1193,6 +1284,7 @@
     G.hatFlight = 0;
     G.queue = [];
     G.farmer = freshFarmer();
+    G.workers = [];
     syncAnimals();
     rebuildNav();
     return away;
@@ -1210,6 +1302,7 @@
     G.hatFlight = 0;
     G.queue = [];
     G.farmer = freshFarmer();
+    G.workers = [];
     rebuildNav();
     G.save();
   };

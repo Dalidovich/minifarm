@@ -263,22 +263,21 @@
     });
   }
 
-  function farmerSprite(f) {
-    const set = S.farmer[f.dir];
+  function actorSprite(sets, f) {
+    const set = sets[f.dir];
     if (f.state === 'walk') return set.walk[Math.floor(f.step) % 4];
     if (f.state === 'act' && f.tool && set.act) return set.act[f.tool][f.hit ? 1 : 0];
     if (f.state === 'idle' && set.idle[2] && f.idleT % 3.2 > 3.05) return set.idle[2];
     return set.idle[f.state === 'idle' ? Math.floor(f.idleT / 0.6) % 2 : 0];
   }
 
-  function farmerItem(items) {
-    const f = MF.game.farmer;
+  function actorItem(items, sets, f) {
     items.push({
       y: f.y,
       draw: function () {
         const hop = f.state === 'act' && !f.tool && !f.hit ? -2 : 0;
         shadow(f.x, Math.round(f.y), 10);
-        ctx.drawImage(farmerSprite(f), Math.round(f.x) - S.farmer[f.dir].anchorX, Math.round(f.y) - S.farmerAnchorY + hop);
+        ctx.drawImage(actorSprite(sets, f), Math.round(f.x) - sets[f.dir].anchorX, Math.round(f.y) - S.farmerAnchorY + hop);
       }
     });
   }
@@ -582,7 +581,8 @@
     treeItems(s, items);
     if (s.up.coop > 0) penItems(s, items);
     cropItems(s, items);
-    farmerItem(items);
+    actorItem(items, S.farmer, MF.game.farmer);
+    MF.game.workers.forEach(function (w) { actorItem(items, S.workers[w.id], w); });
     items.sort(function (a, b) { return a.y - b.y; });
     items.forEach(function (item) { item.draw(); });
     drawBees();
