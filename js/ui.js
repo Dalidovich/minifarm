@@ -88,12 +88,15 @@
       }
       const cost = G.seedCost(crop);
       const daily = G.isDaily(crop.id);
+      const next = G.isNextDaily(crop.id);
       const cls = 'slot' + (s.selected === crop.id ? ' sel' : '') + (s.coins < cost ? ' poor' : '') + (daily ? ' daily' : '');
       return '<button class="' + cls + '" data-crop="' + crop.id + '">' + ico(crop.id) +
         '<span class="cost">' + ico('coin', 'tiny') + cost + '</span>' +
         (daily ? '<span class="mark">' + ico('star', 'tiny') + '</span>' : '') +
+        (next ? '<span class="mark">' + ico('insider', 'tiny') + '</span>' : '') +
         '<span class="tip">' + name + '<br>' + t('sellsFor') + ' ' + ico('coin', 'tiny') + G.priceOf(crop) +
-        (daily ? '<br><span class="good">' + t('daily.tip', { pct: Math.round((G.dailyBonus() - 1) * 100) }) + '</span>' : '') + '</span></button>';
+        (daily ? '<br><span class="good">' + t('daily.tip', { pct: Math.round((G.dailyBonus() - 1) * 100) }) + '</span>' : '') +
+        (next ? '<br><span class="good">' + t('daily.next') + '</span>' : '') + '</span></button>';
     }).join('');
   }
 

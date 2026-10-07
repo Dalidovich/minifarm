@@ -554,6 +554,20 @@
       '.kwwwwwwwwk.',
       '..kkkkkkkk..',
       '............'
+    ],
+    insider: [
+      '............',
+      '............',
+      '.kkkkkkkkkk.',
+      '.kkwwwwwwkk.',
+      '.kwkwwwwkwk.',
+      '.kwwkrrkwwk.',
+      '.kwwwrrwwwk.',
+      '.kwwwwwwwwk.',
+      '.kwwwwwwwwk.',
+      '.kkkkkkkkkk.',
+      '............',
+      '............'
     ]
   };
 
@@ -1379,6 +1393,7 @@
     seeds: S.icons.seeds,
     market: S.icons.market,
     sign: S.icons.sign,
+    insider: S.icons.insider,
     feed: S.icons.feed,
     henhand: S.workers.henhand.down.idle[0],
     shears: S.icons.shears,
