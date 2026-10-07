@@ -273,6 +273,7 @@
             if (stage < 3 && plot.wet <= 0 && Math.sin(clock * 5) > -0.4) {
               ctx.drawImage(S.miniDrop, x + 10, y - 3 + Math.round(Math.sin(clock * 4 + i)));
             }
+            if (plot.pollen) flower(ctx, x + 3, y + 2, '#f29bb5');
             if (stage === 3 && Math.random() < 0.01) R.burst(x + 8, y + 2, ['#fff7e6', '#f7d04a'], 1);
           }
         });
@@ -385,7 +386,31 @@
         y: C.scarecrow.y + 30,
         draw: function () {
           shadow(C.scarecrow.x + 9, C.scarecrow.y + 29, 10);
-          ctx.drawImage(S.scarecrow, C.scarecrow.x, C.scarecrow.y);
+          ctx.drawImage(s.hat ? S.scarecrowBare : S.scarecrow, C.scarecrow.x, C.scarecrow.y);
+        }
+      });
+    }
+    if (s.hat) {
+      items.push({
+        y: s.hat.y,
+        draw: function () {
+          const k = MF.game.hatFlight / C.hat.flight;
+          const x = s.hat.x + (C.scarecrow.x + 9 - s.hat.x) * k;
+          const y = s.hat.y + (C.scarecrow.y + 7 - s.hat.y) * k - Math.sin(k * Math.PI) * 18;
+          if (k <= 0) shadow(s.hat.x, s.hat.y, 10);
+          ctx.drawImage(S.hat, Math.round(x) - 6, Math.round(y) - 6);
+        }
+      });
+    }
+    if (s.gift) {
+      const spot = C.catGift.spot;
+      items.push({
+        y: spot.y,
+        draw: function () {
+          const hop = Math.sin(clock * 4) > 0.5 ? -1 : 0;
+          shadow(spot.x, spot.y, 8);
+          ctx.drawImage(S.icons[s.gift.kind === 'crop' ? s.gift.crop : s.gift.kind], spot.x - 6, spot.y - 12 + hop);
+          if (Math.random() < 0.02) R.burst(spot.x, spot.y - 8, ['#fff7e6', '#f7d04a'], 1);
         }
       });
     }
@@ -416,6 +441,29 @@
         }
       });
     }
+  }
+
+  function drawBees() {
+    MF.game.bees.forEach(function (bee, i) {
+      if (!bee.out) return;
+      const x = Math.round(bee.x);
+      const y = Math.round(bee.y + Math.sin(clock * 9 + i * 2) * 1.5);
+      rect(ctx, '#3b2a22', x - 1, y, 3, 2);
+      rect(ctx, '#f7d04a', x - 1, y, 1, 2);
+      rect(ctx, '#f7d04a', x + 1, y, 1, 2);
+      if (Math.floor(clock * 16 + i) % 2) rect(ctx, '#fff7e6', x - 1, y - 1, 3, 1);
+    });
+  }
+
+  function drawFireflies() {
+    MF.game.fireflies.forEach(function (fly, i) {
+      const x = Math.round(fly.x);
+      const y = Math.round(fly.y);
+      if (Math.sin(fly.t * 3 + i) < -0.3) return rect(ctx, '#a8b860', x, y, 1, 1);
+      rect(ctx, 'rgba(234,255,138,0.4)', x - 1, y, 3, 1);
+      rect(ctx, 'rgba(234,255,138,0.4)', x, y - 1, 1, 3);
+      rect(ctx, '#f4ffb0', x, y, 1, 1);
+    });
   }
 
   function drawPondSparkles() {
@@ -508,9 +556,11 @@
     farmerItem(items);
     items.sort(function (a, b) { return a.y - b.y; });
     items.forEach(function (item) { item.draw(); });
+    drawBees();
     drawSprinklerMist(s);
     drawParticles(dt);
     drawRain(s, dt);
     drawNight(s);
+    drawFireflies();
   };
 })();

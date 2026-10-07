@@ -9,9 +9,14 @@
   const upById = {};
   C.upgrades.forEach(function (u) { upById[u.id] = u; });
 
-  const G = (MF.game = { state: null, chickens: [], ducks: [], cat: null, farmer: null, queue: [], cropById: cropById, upById: upById, maxLevel: MAX_LEVEL });
+  const G = (MF.game = {
+    state: null, chickens: [], ducks: [], cat: null, bees: [], fireflies: [], hatFlight: 0, farmer: null, queue: [],
+    cropById: cropById, upById: upById, maxLevel: MAX_LEVEL
+  });
 
   let saveTimer = 0;
+  let fireflyIn = 0;
+  let petWait = 0;
   let warnAt = 0;
   let ripeSoundAt = 0;
   let navCols = 0;
@@ -51,6 +56,9 @@
       rain: 0,
       rainIn: 420,
       daily: null,
+      hat: null,
+      gift: null,
+      catGiftIn: C.catGift.every[0],
       tut: 0,
       tutTimer: 0,
       completed: false,
@@ -63,6 +71,16 @@
   function wetDuration() { return C.wetDuration[G.state.up.can]; }
   function canCapacity() { return C.canCapacity[G.state.up.can]; }
   function growSpeed() { return 1 + C.fertBonus * G.state.up.fert; }
+  function dayIndex() { return Math.floor(G.state.time / C.dayLength); }
+  function isNight() {
+    const phase = (G.state.time % C.dayLength) / C.dayLength;
+    return phase >= C.night[0] && phase < C.night[1];
+  }
+  function nightBoost(quiet) {
+    if (!G.state.up.lanterns) return 1;
+    if (quiet) return 1 + (C.nightGrow - 1) * (C.night[1] - C.night[0]);
+    return isNight() ? C.nightGrow : 1;
+  }
   function isDaily(id) { return !!G.state.daily && G.state.daily.crop === id; }
   function dailyBonus() { return C.dailyBonus[G.state.up.sign]; }
   function offlineCap() { return C.offlineCap[G.state.up.hammock]; }
@@ -190,10 +208,17 @@
 
   G.probe = function (x, y) {
     const s = G.state;
+    for (let i = G.fireflies.length - 1; i >= 0; i--) {
+      const fly = G.fireflies[i];
+      if (Math.abs(x - fly.x) <= 5 && Math.abs(y - fly.y) <= 5) return { type: 'firefly', index: i };
+    }
     for (let i = s.eggs.length - 1; i >= 0; i--) {
       const e = s.eggs[i];
       if (Math.abs(x - e.x) <= 5 && Math.abs(y - (e.y - 3)) <= 6) return { type: 'egg', index: i };
     }
+    if (s.gift && Math.abs(x - C.catGift.spot.x) <= 7 && Math.abs(y - (C.catGift.spot.y - 5)) <= 7) return { type: 'gift' };
+    if (s.hat && Math.abs(x - s.hat.x) <= 7 && Math.abs(y - (s.hat.y - 3)) <= 5) return { type: 'hat' };
+    if (G.cat && Math.abs(x - G.cat.x) <= 7 && Math.abs(y - (G.cat.y - 4)) <= 6) return { type: 'cat' };
     for (let i = 0; i < s.trees.length; i++) {
       const spot = C.treeSpots[i];
       if (x >= spot[0] - 14 && x < spot[0] + 14 && y >= spot[1] - 40 && y < spot[1]) return { type: 'tree', index: i };
@@ -246,16 +271,21 @@
       } else if (p.action === 'harvest') {
         const crop = cropById[plot.crop];
         const golden = Math.random() < C.luckChance[s.up.clover];
-        gained += priceOf(crop) * (golden ? C.luckBonus : 1);
+        const count = plot.pollen ? C.bees.bonus : 1;
+        gained += priceOf(crop) * count * (golden ? C.luckBonus : 1);
         addXp(crop.xp);
         plot.kind = 'soil';
         plot.crop = null;
         plot.growth = 0;
-        progressOrders(crop.id, 1);
+        plot.pollen = false;
+        progressOrders(crop.id, count);
         if (golden) {
           lucky = true;
           MF.render.burst(pos.x + 8, pos.y + 6, ['#f7d04a', '#fff7e6', '#d6a021'], 18);
           MF.ui.float(pos.x + 8, pos.y - 14, MF.t('msg.lucky', { n: C.luckBonus }), 'lucky');
+        } else if (count > 1) {
+          MF.render.burst(pos.x + 8, pos.y + 6, ['#f29bb5', '#f7d04a', '#fff7e6'], 12);
+          MF.ui.float(pos.x + 8, pos.y - 14, MF.t('msg.bees', { n: count }), 'info');
         } else MF.render.burst(pos.x + 8, pos.y + 6, ['#fff7e6', '#f7d04a', '#a4de6a'], 7);
       }
       stroke.add(i);
@@ -320,6 +350,64 @@
     MF.render.burst(spot[0], spot[1] - 24, ['#d9483b', '#a4de6a', '#fff7e6'], 10);
     MF.audio.play('harvest');
     MF.audio.play('coin');
+  }
+
+  function catchFirefly(index) {
+    const fly = G.fireflies.splice(index, 1)[0];
+    earn(randInt(C.fireflies.coins[0], C.fireflies.coins[1]) * G.state.level, fly.x, fly.y - 6);
+    MF.render.burst(fly.x, fly.y, ['#eaff8a', '#fff7e6', '#f7d04a'], 8);
+    MF.audio.play('coin');
+  }
+
+  function makeGift() {
+    const s = G.state;
+    const roll = Math.random();
+    if (roll < C.catGift.gemChance) return { kind: 'gem', coins: C.catGift.gem * s.level };
+    if (roll < C.catGift.gemChance + C.catGift.cropChance) {
+      return { kind: 'crop', crop: pick(C.crops.filter(function (c) { return c.level <= s.level; })).id };
+    }
+    return { kind: 'coin', coins: randInt(C.catGift.coin[0], C.catGift.coin[1]) * s.level };
+  }
+
+  function collectGift() {
+    const s = G.state;
+    const gift = s.gift;
+    const spot = C.catGift.spot;
+    s.gift = null;
+    if (gift.kind === 'crop') {
+      earn(priceOf(cropById[gift.crop]), spot.x, spot.y - 12);
+      progressOrders(gift.crop, 1);
+    } else earn(gift.coins, spot.x, spot.y - 12);
+    MF.render.burst(spot.x, spot.y - 4, ['#fff7e6', '#f7d04a', '#f29bb5'], 8);
+    MF.audio.play('coin');
+  }
+
+  function petCat() {
+    const s = G.state;
+    const cat = G.cat;
+    if (!cat.carrying) cat.pause = Math.max(cat.pause, 1.5);
+    MF.render.burst(cat.x, cat.y - 8, ['#f29bb5', '#d9483b'], 5);
+    MF.ui.float(cat.x, cat.y - 12, MF.t('msg.purr'), 'info');
+    MF.audio.play('purr');
+    if (petWait > 0 || s.gift || cat.carrying) return;
+    petWait = C.catGift.petCooldown;
+    s.catGiftIn = Math.max(1, s.catGiftIn - C.catGift.petSkip);
+  }
+
+  function blowHat() {
+    const s = G.state;
+    const zone = C.hat.zone;
+    if (!s.up.scarecrow || s.hat) return;
+    s.hat = { x: Math.round(rand(zone.x, zone.x + zone.w)), y: Math.round(rand(zone.y, zone.y + zone.h)), day: dayIndex() };
+    G.hatFlight = C.hat.flight;
+    MF.audio.play('wind');
+  }
+
+  function returnHat() {
+    G.state.hat = null;
+    G.hatFlight = 0;
+    MF.render.burst(C.scarecrow.x + 9, C.scarecrow.y + 4, ['#c29a3a', '#f7d04a', '#fff7e6'], 8);
+    MF.audio.play('plant');
   }
 
   function blockRect(x, y, w, h) {
@@ -491,6 +579,11 @@
     if (task.type === 'well') return { x: C.well.x + 12, y: C.well.y + C.well.h + 5, dir: 'up' };
     if (task.type === 'tree') return { x: C.treeSpots[task.index][0], y: C.treeSpots[task.index][1] + 5, dir: 'up' };
     if (task.type === 'house') return { x: C.farmerDoor.x, y: C.farmerDoor.y, dir: 'up' };
+    if (task.type === 'gift') {
+      const spot = C.catGift.spot;
+      const left = f.x < spot.x;
+      return { x: spot.x + (left ? -8 : 8), y: spot.y, dir: left ? 'right' : 'left' };
+    }
     if (task.type === 'egg') {
       const side = f.x < task.egg.x ? -8 : 8;
       const x = Math.max(C.pen.x + 10, Math.min(C.pen.x + C.pen.w - 10, task.egg.x + side));
@@ -504,6 +597,7 @@
     if (task.type === 'plot') return plotAction(s.plots[task.index]) !== null;
     if (task.type === 'egg') return s.eggs.indexOf(task.egg) >= 0;
     if (task.type === 'tree') return s.trees[task.index].apples > 0;
+    if (task.type === 'gift') return !!s.gift;
     return true;
   }
 
@@ -547,7 +641,7 @@
       }
       f.tool = TOOL_BY_ACTION[f.action];
     }
-    if (task.type === 'egg') f.tool = 'grab';
+    if (task.type === 'egg' || task.type === 'gift') f.tool = 'grab';
     f.state = 'act';
     f.actT = 0;
     f.hit = false;
@@ -560,6 +654,7 @@
       applyPlots({ index: task.index, action: f.action, targets: areaTargets(task.index, f.action) }, new Set());
     } else if (task.type === 'well') refill();
     else if (task.type === 'tree') pickApples(task.index);
+    else if (task.type === 'gift') collectGift();
     else if (task.type === 'egg') {
       const at = G.state.eggs.indexOf(task.egg);
       if (at >= 0) collectEgg(at);
@@ -645,6 +740,13 @@
       return;
     }
     if (dragging) return;
+    if (p.type === 'firefly') return catchFirefly(p.index);
+    if (p.type === 'hat') return returnHat();
+    if (p.type === 'cat') return petCat();
+    if (p.type === 'gift') {
+      if (!queued('gift')) enqueue({ type: 'gift' });
+      return;
+    }
     if (p.type === 'well') {
       if (s.water >= canCapacity()) MF.ui.float(C.well.x + 12, C.well.y, MF.t('msg.full'), 'info');
       else if (!queued('well')) enqueue({ type: 'well' });
@@ -751,8 +853,138 @@
     const ducks = s.up.ducks ? 2 : 0;
     while (G.ducks.length < ducks) G.ducks.push(walker(duckPoint(), { look: G.ducks.length % 2 }));
     G.ducks.length = ducks;
-    if (s.up.cat && !G.cat) G.cat = walker(catPoint(), {});
+    if (s.up.cat && !G.cat) G.cat = walker(catPoint(), { carrying: false });
     if (!s.up.cat) G.cat = null;
+    const bees = s.up.flowers ? C.bees.count : 0;
+    while (G.bees.length < bees) G.bees.push(freshBee());
+    G.bees.length = bees;
+  }
+
+  function beeSpot() {
+    const spot = pick(C.bees.spots);
+    return { x: spot[0] + rand(-3, 3), y: spot[1] - rand(4, 9) };
+  }
+
+  function freshBee() {
+    const home = beeSpot();
+    return { x: home.x, y: home.y, tx: home.x, ty: home.y, plot: -1, work: 0, wait: rand(C.bees.visit[0], C.bees.visit[1]), out: false };
+  }
+
+  function sendBee(bee, x, y) {
+    bee.tx = x;
+    bee.ty = y;
+  }
+
+  function beeTarget() {
+    const s = G.state;
+    const size = fieldSize();
+    const open = [];
+    for (let row = 0; row < size[1]; row++) {
+      for (let col = 0; col < size[0]; col++) {
+        const i = row * C.field.cols + col;
+        const plot = s.plots[i];
+        if (plot.kind !== 'crop' || plot.pollen || plot.growth >= cropById[plot.crop].time) continue;
+        if (!G.bees.some(function (bee) { return bee.plot === i; })) open.push(i);
+      }
+    }
+    return open.length ? pick(open) : -1;
+  }
+
+  function updateBee(bee, dt, awake) {
+    const s = G.state;
+    const dx = bee.tx - bee.x;
+    const dy = bee.ty - bee.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    bee.out = awake || bee.plot >= 0;
+    if (dist > 1) {
+      const step = Math.min(dist, C.bees.speed * dt);
+      bee.x += (dx / dist) * step;
+      bee.y += (dy / dist) * step;
+      return;
+    }
+    if (bee.plot >= 0) {
+      bee.work += dt;
+      if (bee.work < C.bees.work) return;
+      const plot = s.plots[bee.plot];
+      if (plot.kind === 'crop') {
+        plot.pollen = true;
+        MF.render.burst(bee.x, bee.y + 4, ['#f29bb5', '#f7d04a'], 5);
+      }
+      const home = beeSpot();
+      bee.plot = -1;
+      bee.wait = rand(C.bees.visit[0], C.bees.visit[1]);
+      return sendBee(bee, home.x, home.y);
+    }
+    if (!awake) return;
+    bee.wait -= dt;
+    if (bee.wait > 0) return;
+    const target = beeTarget();
+    if (target < 0) {
+      const home = beeSpot();
+      bee.wait = 6;
+      return sendBee(bee, home.x, home.y);
+    }
+    const pos = plotPos(target);
+    bee.plot = target;
+    bee.work = 0;
+    sendBee(bee, pos.x + 8, pos.y + 2);
+  }
+
+  function updateFireflies(dt) {
+    const s = G.state;
+    const cfg = C.fireflies;
+    const out = !!s.up.lanterns && isNight() && s.rain <= 0;
+    G.fireflies.forEach(function (fly) {
+      fly.life -= dt;
+      fly.t += dt;
+      fly.x = fly.bx + Math.sin(fly.t * fly.sx) * 9;
+      fly.y = fly.by + Math.cos(fly.t * fly.sy) * 6;
+    });
+    G.fireflies = G.fireflies.filter(function (fly) { return out && fly.life > 0; });
+    if (!out) return;
+    fireflyIn -= dt;
+    if (fireflyIn > 0) return;
+    fireflyIn = rand(cfg.every[0], cfg.every[1]);
+    if (G.fireflies.length >= cfg.max) return;
+    const lamp = pick(C.lanternSpots);
+    const bx = lamp[0] + 4 + rand(-28, 28);
+    const by = lamp[1] + 4 + rand(-24, 12);
+    G.fireflies.push({ bx: bx, by: by, x: bx, y: by, t: rand(0, 6), sx: rand(0.5, 1.1), sy: rand(0.6, 1.3), life: rand(cfg.life[0], cfg.life[1]) });
+  }
+
+  function updateCat(dt, step, quiet) {
+    const s = G.state;
+    const cat = G.cat;
+    const spot = C.catGift.spot;
+    if (!cat) return;
+    petWait = Math.max(0, petWait - dt);
+    if (!s.gift && !cat.carrying) {
+      s.catGiftIn -= dt;
+      if (s.catGiftIn <= 0) {
+        s.catGiftIn = rand(C.catGift.every[0], C.catGift.every[1]);
+        if (quiet) s.gift = makeGift();
+        else {
+          cat.carrying = true;
+          cat.pause = 0;
+          cat.tx = spot.x;
+          cat.ty = spot.y;
+        }
+      }
+    }
+    if (cat.carrying && Math.abs(cat.x - spot.x) < 2 && Math.abs(cat.y - spot.y) < 2) {
+      cat.carrying = false;
+      cat.pause = 2;
+      s.gift = makeGift();
+      MF.render.burst(spot.x, spot.y - 4, ['#fff7e6', '#f7d04a'], 6);
+      MF.audio.play('ripe');
+    }
+    moveWalker(cat, step, cat.carrying ? 30 : 16, catPoint, 3, 10);
+  }
+
+  function updateHat(dt) {
+    const s = G.state;
+    G.hatFlight = Math.max(0, G.hatFlight - dt);
+    if (s.hat && dayIndex() > s.hat.day) s.hat = null;
   }
 
   function moveWalker(a, dt, speed, nextPoint, pauseMin, pauseMax) {
@@ -786,7 +1018,9 @@
       s.rain = Math.max(0, s.rain - dt);
       return;
     }
+    const before = s.rainIn;
     s.rainIn -= dt;
+    if (before > C.hat.warn && s.rainIn <= C.hat.warn) blowHat();
     if (s.rainIn <= 0) {
       s.rain = rand(35, 60);
       s.rainIn = rand(300, 700);
@@ -796,7 +1030,7 @@
 
   function updateDaily(quiet) {
     const s = G.state;
-    const day = Math.floor(s.time / C.dayLength);
+    const day = dayIndex();
     if (s.daily && s.daily.day === day) return;
     const open = C.crops.filter(function (c) { return c.level <= s.level; }).slice(-C.dailyPool);
     if (open.length < 2) return;
@@ -811,7 +1045,7 @@
     const s = G.state;
     const size = fieldSize();
     const duration = wetDuration();
-    const speed = growSpeed();
+    const speed = growSpeed() * nightBoost(quiet);
     const soaked = s.up.sprinkler || s.rain > 0;
     for (let row = 0; row < size[1]; row++) {
       for (let col = 0; col < size[0]; col++) {
@@ -858,7 +1092,12 @@
       moveWalker(ch, step, 12, penPoint, 0.8, 4);
     });
     G.ducks.forEach(function (duck) { moveWalker(duck, step, 5, duckPoint, 2, 8); });
-    if (G.cat) moveWalker(G.cat, step, 16, catPoint, 3, 10);
+    updateCat(dt, step, quiet);
+    if (!quiet) {
+      const awake = !isNight() && s.rain <= 0;
+      G.bees.forEach(function (bee) { updateBee(bee, dt, awake); });
+      updateFireflies(dt);
+    }
     s.trees.forEach(function (tree) {
       tree.t -= dt;
       while (tree.t <= 0) {
@@ -885,6 +1124,7 @@
     if (!quiet) updateWeather(dt);
     updatePlots(dt, quiet);
     updateAnimals(dt, quiet);
+    updateHat(dt);
     if (!quiet) updateFarmer(dt);
     updateOrders(dt);
     if (s.tut === 4) {
@@ -927,6 +1167,9 @@
     G.chickens = [];
     G.ducks = [];
     G.cat = null;
+    G.bees = [];
+    G.fireflies = [];
+    G.hatFlight = 0;
     G.queue = [];
     G.farmer = freshFarmer();
     syncAnimals();
@@ -941,6 +1184,9 @@
     G.chickens = [];
     G.ducks = [];
     G.cat = null;
+    G.bees = [];
+    G.fireflies = [];
+    G.hatFlight = 0;
     G.queue = [];
     G.farmer = freshFarmer();
     rebuildNav();

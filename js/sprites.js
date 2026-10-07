@@ -429,6 +429,20 @@
       '.....kk.....',
       '....kkkk....'
     ],
+    gem: [
+      '............',
+      '............',
+      '...kkkkkk...',
+      '..kwccccCk..',
+      '.kwcccccCCk.',
+      '.kccccccCCk.',
+      '..kccccCCk..',
+      '...kccCCk...',
+      '....kcCk....',
+      '.....kk.....',
+      '............',
+      '............'
+    ],
     clover: [
       '..kkk..kkk..',
       '.kGGGkkGGGk.',
@@ -842,7 +856,7 @@
     }));
   }
 
-  function scarecrow() {
+  function scarecrow(hatOn) {
     return outline(paint(18, 30, function (rect) {
       rect('#a8703a', 8, 12, 2, 17);
       rect('#a8703a', 2, 14, 14, 2);
@@ -855,9 +869,24 @@
       rect('#3b2a22', 7, 8, 1, 1);
       rect('#3b2a22', 10, 8, 1, 1);
       rect('#3b2a22', 8, 10, 2, 1);
-      rect('#c29a3a', 4, 5, 10, 2);
-      rect('#c29a3a', 6, 2, 6, 3);
-      rect('#a63b2e', 6, 4, 6, 1);
+      if (hatOn) {
+        rect('#c29a3a', 4, 5, 10, 2);
+        rect('#c29a3a', 6, 2, 6, 3);
+        rect('#a63b2e', 6, 4, 6, 1);
+      } else {
+        rect('#e8c98a', 6, 5, 6, 1);
+        rect('#f7d04a', 7, 4, 1, 1);
+        rect('#f7d04a', 9, 3, 1, 2);
+        rect('#f7d04a', 11, 4, 1, 1);
+      }
+    }));
+  }
+
+  function hat() {
+    return outline(paint(12, 7, function (rect) {
+      rect('#c29a3a', 1, 4, 10, 2);
+      rect('#c29a3a', 3, 1, 6, 3);
+      rect('#a63b2e', 3, 3, 6, 1);
     }));
   }
 
@@ -906,7 +935,9 @@
   S.appleTree = tree(21, ['#4a9440', '#66b84e', '#8fd466']);
   S.coop = coop();
   S.well = well();
-  S.scarecrow = scarecrow();
+  S.scarecrow = scarecrow(true);
+  S.scarecrowBare = scarecrow(false);
+  S.hat = hat();
   S.lantern = lantern();
   S.glow = glow();
   S.egg = grid(EGG);
