@@ -182,6 +182,34 @@
     }
   };
 
+  R.hearts = function (x, y, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: x + (i - (count - 1) / 2) * 7 + (Math.random() - 0.5) * 3,
+        y: y + (Math.random() - 0.5) * 4,
+        vx: (Math.random() - 0.5) * 6,
+        vy: -9 - Math.random() * 7,
+        life: 0.8 + Math.random() * 0.4,
+        color: i % 2 ? '#f7b9cb' : '#f29bb5',
+        heart: true
+      });
+    }
+  };
+
+  function drawHeart(color, x, y, small) {
+    if (small) {
+      rect(ctx, color, x + 1, y + 1, 1, 1);
+      rect(ctx, color, x + 3, y + 1, 1, 1);
+      rect(ctx, color, x + 2, y + 2, 1, 1);
+      return;
+    }
+    rect(ctx, color, x + 1, y, 1, 1);
+    rect(ctx, color, x + 3, y, 1, 1);
+    rect(ctx, color, x, y + 1, 5, 1);
+    rect(ctx, color, x + 1, y + 2, 3, 1);
+    rect(ctx, color, x + 2, y + 3, 1, 1);
+  }
+
   function shadow(x, y, w) {
     rect(ctx, 'rgba(40,60,30,0.25)', Math.round(x - w / 2), y - 1, w, 2);
     rect(ctx, 'rgba(40,60,30,0.25)', Math.round(x - w / 2) + 1, y + 1, w - 2, 1);
@@ -477,10 +505,11 @@
     particles = particles.filter(function (p) { return p.life > 0; });
     particles.forEach(function (p) {
       p.life -= dt;
-      p.vy += 160 * dt;
+      if (!p.heart) p.vy += 160 * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      rect(ctx, p.color, Math.round(p.x), Math.round(p.y), p.life > 0.2 ? 2 : 1, p.life > 0.2 ? 2 : 1);
+      if (p.heart) drawHeart(p.color, Math.round(p.x) - 2, Math.round(p.y) - 2, p.life <= 0.2);
+      else rect(ctx, p.color, Math.round(p.x), Math.round(p.y), p.life > 0.2 ? 2 : 1, p.life > 0.2 ? 2 : 1);
     });
   }
 

@@ -402,7 +402,7 @@
     const s = G.state;
     const cat = G.cat;
     if (!cat.carrying) cat.pause = Math.max(cat.pause, 1.5);
-    MF.render.burst(cat.x, cat.y - 8, ['#f29bb5', '#d9483b'], 5);
+    MF.render.hearts(cat.x, cat.y - 10, 3);
     MF.ui.float(cat.x, cat.y - 12, MF.t('msg.purr'), 'info');
     MF.audio.play('purr');
     if (petWait > 0 || s.gift || cat.carrying) return;
