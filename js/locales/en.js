@@ -120,7 +120,7 @@ MF.locales.en = {
   'up.seeds.desc': 'Seeds cost less.',
   'up.barn.name': 'Barn',
   'up.barn.name2': 'Bigger barn',
-  'up.barn.desc': 'The harvest is stored instead of sold at once. Sell it later or save it for orders.',
+  'up.barn.desc': 'Keeps the harvest instead of selling it.',
   'up.market.name': 'Market stall',
   'up.market.desc': 'New orders pay more.',
   'up.sign.name': 'Signboard',
