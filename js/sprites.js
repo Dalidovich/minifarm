@@ -526,6 +526,20 @@
       'kkk......kkk',
       '............',
       '............'
+    ],
+    almanac: [
+      '............',
+      '..kkkkkkkk..',
+      '.kRrrrrrrrk.',
+      '.kRryyyyrrk.',
+      '.kRryrryrrk.',
+      '.kRryyyyrrk.',
+      '.kRrrrrrrrk.',
+      '.kRrrrrrrrk.',
+      '.kRkkkkkkkk.',
+      '.kwwwwwwwwk.',
+      '..kkkkkkkk..',
+      '............'
     ]
   };
 
@@ -1117,6 +1131,7 @@
     feed: S.icons.feed,
     shears: S.icons.shears,
     hammock: S.icons.hammock,
+    almanac: S.icons.almanac,
     ducks: duckRight[0],
     coop: whiteRight[0],
     trees: S.icons.apple,

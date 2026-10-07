@@ -232,6 +232,21 @@
     mouse.inside = true;
   }
 
+  function clockText(time) {
+    const phase = (time % C.dayLength) / C.dayLength;
+    const minutes = Math.floor(((6 + phase * 24) % 24) * 6) * 10;
+    return String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0');
+  }
+
+  function ripeText(plot) {
+    if (!G.state.up.almanac) return '';
+    const ripe = G.ripening(plot);
+    const day = Math.floor(ripe.at / C.dayLength);
+    const today = day === Math.floor(G.state.time / C.dayLength);
+    const when = today ? clockText(ripe.at) : t('info.ripeDay', { n: day + 1, time: clockText(ripe.at) });
+    return t('info.ripeAt', { time: when }) + (ripe.watered ? '' : ' ' + t('info.ifWatered'));
+  }
+
   function tooltipHtml(p) {
     const s = G.state;
     if (!p) return '';
@@ -251,8 +266,9 @@
     if (p.action === 'harvest') return t('act.harvest', { name: name });
     const pct = Math.floor((plot.growth / G.cropById[plot.crop].time) * 100);
     const info = t('info.growing', { name: name, pct: pct });
-    if (p.action === 'water') return t('act.water') + '<br><small>' + info + '</small>';
-    return info;
+    const ripe = ripeText(plot);
+    if (p.action === 'water') return t('act.water') + '<br><small>' + info + (ripe ? '<br>' + ripe : '') + '</small>';
+    return info + (ripe ? '<br><small>' + ripe + '</small>' : '');
   }
 
   function refreshHover() {
@@ -287,12 +303,8 @@
     const cap = G.canCapacity();
     setText($('st-water'), s.up.sprinkler ? '∞' : s.water + '/' + cap);
     $('st-waterbar').style.width = (s.up.sprinkler ? 100 : Math.round((s.water / cap) * 100)) + '%';
-    const phase = (s.time % C.dayLength) / C.dayLength;
-    const minutes = Math.floor(((6 + phase * 24) % 24) * 6) * 10;
-    const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
-    const mm = String(minutes % 60).padStart(2, '0');
     setText($('st-day'), t('day', { n: Math.floor(s.time / C.dayLength) + 1 }));
-    setText($('st-clock'), hh + ':' + mm);
+    setText($('st-clock'), clockText(s.time));
     const sky = S.url(MF.render.darkness() > 0.5 ? S.icons.moon : S.icons.sun);
     if (cache.sky !== sky) {
       cache.sky = sky;

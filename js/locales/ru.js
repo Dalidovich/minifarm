@@ -30,6 +30,9 @@ MF.locales.ru = {
   'act.water': 'Полить',
   'act.harvest': 'Собрать: {name}',
   'info.growing': '{name} · {pct}%',
+  'info.ripeAt': 'созреет ≈ {time}',
+  'info.ripeDay': 'День {n}, {time}',
+  'info.ifWatered': '(при поливе)',
   'info.dry': 'нужна вода',
   'tip.well': 'Набрать воды в лейку',
   'tip.egg': 'Подобрать яйцо',
@@ -102,6 +105,8 @@ MF.locales.ru = {
   'up.shears.desc': 'Яблоки зреют быстрее.',
   'up.hammock.name': 'Гамак',
   'up.hammock.desc': 'Ферма дольше работает, пока тебя нет.',
+  'up.almanac.name': 'Альманах',
+  'up.almanac.desc': 'Подсказка показывает, когда растение созреет.',
   'up.ducks.name': 'Утки',
   'up.ducks.desc': 'Пруду без них было одиноко.',
 

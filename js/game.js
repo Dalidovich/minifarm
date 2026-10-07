@@ -707,6 +707,11 @@
     if (G.state.orders[index].item) G.state.orders[index] = { wait: C.orderSkipDelay };
   };
 
+  G.ripening = function (plot) {
+    const left = (cropById[plot.crop].time - plot.growth) / growSpeed();
+    return { at: G.state.time + left, watered: !!G.state.up.sprinkler || plot.wet >= left };
+  };
+
   G.shopOpened = function () {
     if (G.state.tut === 5) G.state.tut = FINAL_TUTORIAL_STEP;
   };

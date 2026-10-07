@@ -30,6 +30,9 @@ MF.locales.en = {
   'act.water': 'Water',
   'act.harvest': 'Harvest: {name}',
   'info.growing': '{name} · {pct}%',
+  'info.ripeAt': 'ripe ≈ {time}',
+  'info.ripeDay': 'Day {n}, {time}',
+  'info.ifWatered': '(if watered)',
   'info.dry': 'needs water',
   'tip.well': 'Refill the watering can',
   'tip.egg': 'Collect the egg',
@@ -102,6 +105,8 @@ MF.locales.en = {
   'up.shears.desc': 'Apples ripen faster.',
   'up.hammock.name': 'Hammock',
   'up.hammock.desc': 'The farm keeps going longer while you are away.',
+  'up.almanac.name': 'Almanac',
+  'up.almanac.desc': 'The tooltip shows when a plant will ripen.',
   'up.ducks.name': 'Ducks',
   'up.ducks.desc': 'The pond was lonely without them.',
 
