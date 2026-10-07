@@ -10,7 +10,7 @@
   C.upgrades.forEach(function (u) { upById[u.id] = u; });
 
   const G = (MF.game = {
-    state: null, chickens: [], ducks: [], cat: null, bees: [], fireflies: [], hatFlight: 0, farmer: null, workers: [], queue: [],
+    state: null, chickens: [], ducks: [], ducklings: [], wish: null, cat: null, bees: [], fireflies: [], hatFlight: 0, farmer: null, workers: [], queue: [],
     cropById: cropById, upById: upById, maxLevel: MAX_LEVEL
   });
 
@@ -59,6 +59,8 @@
       hat: null,
       gift: null,
       catGiftIn: C.catGift.every[0],
+      relics: [],
+      pond: { throws: 0, dry: 0, find: null },
       tut: 0,
       tutTimer: 0,
       completed: false,
@@ -70,7 +72,20 @@
   function fieldSize() { return C.field.tiers[G.state.up.field]; }
   function wetDuration() { return C.wetDuration[G.state.up.can]; }
   function canCapacity() { return C.canCapacity[G.state.up.can]; }
-  function growSpeed() { return 1 + C.fertBonus * G.state.up.fert; }
+  function hasRelic(id) { return G.state.relics.indexOf(id) >= 0; }
+  function setRelics(id) { return C.relics.filter(function (r) { return r.set === id; }); }
+  function setDone(id) { return setRelics(id).every(function (r) { return hasRelic(r.id); }); }
+  function perk(kind, crop) {
+    let total = 0;
+    C.relics.forEach(function (r) {
+      if (r.bonus === kind && (!r.crop || r.crop === crop) && hasRelic(r.id)) total += r.value;
+    });
+    C.relicSets.forEach(function (set) {
+      if (set.bonus === kind && setDone(set.id)) total += set.value;
+    });
+    return total;
+  }
+  function growSpeed(crop) { return (1 + C.fertBonus * G.state.up.fert) * (1 + perk('grow', crop)); }
   function dayIndex() { return Math.floor(G.state.time / C.dayLength); }
   function isNight() {
     const phase = (G.state.time % C.dayLength) / C.dayLength;
@@ -81,8 +96,8 @@
     if (quiet) return 1 + (C.nightGrow - 1) * (C.night[1] - C.night[0]);
     return isNight() ? C.nightGrow : 1;
   }
-  function growDuration(amount) {
-    const base = growSpeed();
+  function growDuration(amount, crop) {
+    const base = growSpeed(crop);
     if (!G.state.up.lanterns) return amount / base;
     let time = G.state.time;
     let left = amount;
@@ -98,9 +113,11 @@
     return time - G.state.time;
   }
   function isDaily(id) { return !!G.state.daily && G.state.daily.crop === id; }
-  function dailyBonus() { return C.dailyBonus[G.state.up.sign]; }
-  function offlineCap() { return C.offlineCap[G.state.up.hammock]; }
-  function priceOf(item) { return Math.round(item.sell * C.houseBonus[G.state.up.house] * (isDaily(item.id) ? dailyBonus() : 1)); }
+  function dailyBonus() { return C.dailyBonus[G.state.up.sign] + perk('daily'); }
+  function offlineCap() { return C.offlineCap[G.state.up.hammock] * (1 + perk('offline')); }
+  function priceOf(item) {
+    return Math.round(item.sell * C.houseBonus[G.state.up.house] * (1 + perk('price')) * (isDaily(item.id) ? dailyBonus() : 1));
+  }
   function itemInfo(id) { return cropById[id] || C.products[id]; }
 
   function isUnlocked(col, row) {
@@ -113,7 +130,7 @@
   }
 
   function seedCost(crop) {
-    const cost = Math.max(1, Math.round(crop.cost * C.seedDiscount[G.state.up.seeds]));
+    const cost = Math.max(1, Math.round(crop.cost * C.seedDiscount[G.state.up.seeds] * (1 - perk('seeds'))));
     return crop.id === C.crops[0].id && G.state.coins < cost ? 0 : cost;
   }
 
@@ -183,7 +200,7 @@
       item: item,
       need: need,
       have: 0,
-      coins: Math.round(need * info.sell * 0.6 * C.orderBonus[s.up.market]),
+      coins: Math.round(need * info.sell * 0.6 * C.orderBonus[s.up.market] * (1 + perk('orders'))),
       xp: Math.max(1, Math.round(need * info.xp * 0.6))
     };
   }
@@ -222,6 +239,12 @@
     return x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
   }
 
+  function inPond(x, y) {
+    const dx = (x - C.pond.x) / C.pond.rx;
+    const dy = (y - C.pond.y) / C.pond.ry;
+    return dx * dx + dy * dy <= 1;
+  }
+
   G.probe = function (x, y) {
     const s = G.state;
     for (let i = G.fireflies.length - 1; i >= 0; i--) {
@@ -240,6 +263,13 @@
       if (x >= spot[0] - 14 && x < spot[0] + 14 && y >= spot[1] - 40 && y < spot[1]) return { type: 'tree', index: i };
     }
     if (inRect(x, y, C.well)) return { type: 'well' };
+    if (s.up.ducks && inPond(x, y)) return { type: 'pond' };
+    for (let i = 0; i < C.relics.length; i++) {
+      const relic = C.relics[i];
+      if (hasRelic(relic.id) && Math.abs(x - relic.spot[0]) <= 7 && y > relic.spot[1] - 15 && y <= relic.spot[1]) {
+        return { type: 'relic', id: relic.id };
+      }
+    }
     const col = Math.floor((x - C.field.x) / C.tile);
     const row = Math.floor((y - C.field.y) / C.tile);
     if (isUnlocked(col, row)) {
@@ -286,7 +316,7 @@
         MF.render.burst(pos.x + 8, pos.y + 6, ['#8fd3f4', '#5bb4e5', '#c9ecfb'], 7);
       } else if (p.action === 'harvest') {
         const crop = cropById[plot.crop];
-        const golden = Math.random() < C.luckChance[s.up.clover];
+        const golden = Math.random() < C.luckChance[s.up.clover] + perk('luck');
         const count = plot.pollen ? C.bees.bonus : 1;
         gained += priceOf(crop) * count * (golden ? C.luckBonus : 1);
         addXp(crop.xp);
@@ -408,6 +438,103 @@
     if (petWait > 0 || s.gift || cat.carrying) return;
     petWait = C.catGift.petCooldown;
     s.catGiftIn = Math.max(1, s.catGiftIn - C.catGift.petSkip);
+  }
+
+  function throwCost() { return C.pond.throwCost[G.state.level - 1]; }
+
+  function ducklingCount() {
+    const throws = G.state.pond.throws;
+    return C.pond.ducklingAt.filter(function (need) { return throws >= need; }).length;
+  }
+
+  function relicsLeft() {
+    return C.relics.filter(function (r) { return !hasRelic(r.id); });
+  }
+
+  function relicChance() {
+    return C.pond.relicChance + C.pond.ducklingChance * ducklingCount();
+  }
+
+  function makeFind(cost) {
+    const s = G.state;
+    const cfg = C.pond;
+    const left = relicsLeft();
+    if (left.length && (s.pond.dry + 1 >= cfg.pity || Math.random() < relicChance())) return { kind: 'relic', id: pick(left).id };
+    const roll = Math.random();
+    if (roll < cfg.gemChance) return { kind: 'gem', coins: Math.round(cost * rand(cfg.gem[0], cfg.gem[1])) };
+    if (roll < cfg.gemChance + cfg.coinChance) return { kind: 'coin', coins: Math.max(1, Math.round(cost * rand(cfg.coin[0], cfg.coin[1]))) };
+    return { kind: 'none' };
+  }
+
+  function tossCoin() {
+    const s = G.state;
+    const f = G.farmer;
+    const cost = throwCost();
+    const diver = G.ducks[G.ducks.length - 1];
+    if (s.coins < cost) return warn('msg.noCoins', f.x, f.y - 20);
+    s.coins -= cost;
+    MF.ui.float(f.x, f.y - 20, '-' + cost, 'spend');
+    s.pond.find = makeFind(cost);
+    s.pond.dry = s.pond.find.kind === 'relic' ? 0 : s.pond.dry + 1;
+    s.pond.throws++;
+    diver.pause = C.pond.toss + C.pond.dive + 1;
+    G.wish = { t: 0, x: f.x - 4, y: f.y - 14, duck: diver };
+    MF.audio.play('toss');
+    G.save();
+  }
+
+  function revealRelic(id, x, y) {
+    const s = G.state;
+    const relic = C.relics.filter(function (r) { return r.id === id; })[0];
+    s.relics.push(id);
+    MF.render.burst(x, y - 4, ['#f7d04a', '#fff7e6', '#d6a021'], 18);
+    MF.render.burst(relic.spot[0], relic.spot[1] - 6, ['#f7d04a', '#fff7e6', '#d6a021'], 14);
+    MF.ui.toast(MF.t('toast.relic', { name: MF.t('relic.' + id) }) + '<br>' + G.perkText(relic), id);
+    MF.audio.play('lucky');
+    if (!setDone(relic.set)) return;
+    const set = C.relicSets.filter(function (item) { return item.id === relic.set; })[0];
+    MF.ui.toast(MF.t('toast.set', { name: MF.t('relicSet.' + set.id) }) + '<br>' + G.perkText(set), 'star');
+    MF.audio.play('level');
+  }
+
+  function revealFind() {
+    const s = G.state;
+    const find = s.pond.find;
+    const x = G.wish ? G.wish.duck.x : C.pond.x;
+    const y = G.wish ? G.wish.duck.y : C.pond.y;
+    s.pond.find = null;
+    G.wish = null;
+    MF.render.burst(x, y, ['#e8f7ff', '#c9ecfb', '#8fd3f4'], 8);
+    if (find.kind === 'relic') revealRelic(find.id, x, y);
+    else if (find.kind === 'none') {
+      MF.ui.float(x, y - 10, MF.t('msg.nothing'), 'info');
+      MF.audio.play('plop');
+    } else {
+      earn(find.coins, x, y - 10);
+      MF.audio.play(find.kind === 'gem' ? 'lucky' : 'coin');
+    }
+    if (ducklingCount() > G.ducklings.length) {
+      syncAnimals();
+      MF.ui.toast(MF.t('toast.duckling', { pct: Math.round(relicChance() * 100) }), 'duckling');
+      MF.audio.play('egg');
+    }
+    G.save();
+  }
+
+  function updatePond(dt) {
+    const s = G.state;
+    const wish = G.wish;
+    if (!s.pond.find) return;
+    if (wish) {
+      const before = wish.t;
+      wish.t += dt;
+      if (before < C.pond.toss && wish.t >= C.pond.toss) {
+        MF.render.burst(wish.duck.x, wish.duck.y, ['#e8f7ff', '#c9ecfb', '#8fd3f4'], 10);
+        MF.audio.play('splash');
+      }
+      if (wish.t < C.pond.toss + C.pond.dive) return;
+    }
+    revealFind();
   }
 
   function blowHat() {
@@ -594,6 +721,7 @@
     if (task.type === 'well') return { x: C.well.x + 12, y: C.well.y + C.well.h + 5, dir: 'up' };
     if (task.type === 'tree') return { x: C.treeSpots[task.index][0], y: C.treeSpots[task.index][1] + 5, dir: 'up' };
     if (task.type === 'house') return { x: C.farmerDoor.x, y: C.farmerDoor.y, dir: 'up' };
+    if (task.type === 'pond') return { x: C.pond.stand.x, y: C.pond.stand.y, dir: 'left' };
     if (task.type === 'gift') {
       const spot = C.catGift.spot;
       const left = f.x < spot.x;
@@ -613,6 +741,7 @@
     if (task.type === 'egg') return s.eggs.indexOf(task.egg) >= 0;
     if (task.type === 'tree') return s.trees[task.index].apples > 0;
     if (task.type === 'gift') return !!s.gift;
+    if (task.type === 'pond') return !s.pond.find;
     return true;
   }
 
@@ -670,6 +799,7 @@
     } else if (task.type === 'well') refill();
     else if (task.type === 'tree') pickApples(task.index);
     else if (task.type === 'gift') collectGift();
+    else if (task.type === 'pond') tossCoin();
     else if (task.type === 'egg') {
       const at = G.state.eggs.indexOf(task.egg);
       if (at >= 0) collectEgg(at);
@@ -702,7 +832,7 @@
 
   function walkFarmer(dt) {
     const f = G.farmer;
-    followPath(f, C.farmerSpeed[G.state.up.boots] * dt);
+    followPath(f, C.farmerSpeed[G.state.up.boots] * (1 + perk('walk')) * dt);
     f.step += dt * 9;
     f.dustT += dt;
     if (f.dustT > 0.22) {
@@ -848,6 +978,11 @@
       if (!queued('gift')) enqueue({ type: 'gift' });
       return;
     }
+    if (p.type === 'pond') {
+      if (s.pond.find || queued('pond')) return;
+      if (s.coins < throwCost()) return warn('msg.noCoins', C.pond.x, C.pond.y - 14);
+      return enqueue({ type: 'pond' });
+    }
     if (p.type === 'well') {
       if (s.water >= canCapacity()) MF.ui.float(C.well.x + 12, C.well.y, MF.t('msg.full'), 'info');
       else if (!queued('well')) enqueue({ type: 'well' });
@@ -911,8 +1046,15 @@
   };
 
   G.ripening = function (plot) {
-    const left = growDuration(cropById[plot.crop].time - plot.growth);
+    const left = growDuration(cropById[plot.crop].time - plot.growth, plot.crop);
     return { at: G.state.time + left, watered: !!G.state.up.sprinkler || plot.wet >= left };
+  };
+
+  G.perkText = function (item) {
+    return MF.t('perk.' + item.bonus + (item.crop ? '.crop' : ''), {
+      pct: Math.round(item.value * 100),
+      name: item.crop ? MF.t('crop.' + item.crop) : ''
+    });
   };
 
   G.shopOpened = function () {
@@ -959,6 +1101,9 @@
     const ducks = s.up.ducks ? 2 : 0;
     while (G.ducks.length < ducks) G.ducks.push(walker(duckPoint(), { look: G.ducks.length % 2 }));
     G.ducks.length = ducks;
+    const ducklings = s.up.ducks ? ducklingCount() : 0;
+    while (G.ducklings.length < ducklings) G.ducklings.push(walker(G.ducks[0], {}));
+    G.ducklings.length = ducklings;
     if (s.up.cat && !G.cat) G.cat = walker(catPoint(), { carrying: false });
     if (!s.up.cat) G.cat = null;
     const bees = s.up.flowers ? C.bees.count : 0;
@@ -1070,7 +1215,7 @@
     if (!s.gift && !cat.carrying) {
       s.catGiftIn -= dt;
       if (s.catGiftIn <= 0) {
-        s.catGiftIn = rand(C.catGift.every[0], C.catGift.every[1]);
+        s.catGiftIn = rand(C.catGift.every[0], C.catGift.every[1]) / (1 + perk('gifts'));
         if (quiet) s.gift = makeGift();
         else {
           cat.carrying = true;
@@ -1121,6 +1266,18 @@
     a.step += dt * 8;
   }
 
+  function followWalker(a, lead, dt, speed, gap) {
+    const dx = lead.x - a.x;
+    const dy = lead.y - a.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    a.moving = dist > gap;
+    if (!a.moving) return;
+    const step = Math.min(dist - gap, speed * dt);
+    a.left = dx < 0;
+    a.x += (dx / dist) * step;
+    a.y += (dy / dist) * step;
+  }
+
   function updateWeather(dt) {
     const s = G.state;
     if (s.rain > 0) {
@@ -1154,7 +1311,7 @@
     const s = G.state;
     const size = fieldSize();
     const duration = wetDuration();
-    const speed = growSpeed() * nightBoost(quiet);
+    const night = nightBoost(quiet);
     const soaked = s.up.sprinkler || s.rain > 0;
     for (let row = 0; row < size[1]; row++) {
       for (let col = 0; col < size[0]; col++) {
@@ -1164,7 +1321,7 @@
         if (plot.kind === 'crop') {
           const time = cropById[plot.crop].time;
           if (plot.growth < time) {
-            plot.growth += (soaked ? dt : Math.min(dt, plot.wet)) * speed;
+            plot.growth += (soaked ? dt : Math.min(dt, plot.wet)) * growSpeed(plot.crop) * night;
             if (plot.growth >= time) {
               plot.growth = time;
               if (!quiet) ripened(i);
@@ -1192,7 +1349,7 @@
     G.chickens.forEach(function (ch) {
       ch.eggT -= dt;
       while (ch.eggT <= 0) {
-        ch.eggT += (C.eggInterval / C.feedSpeed[s.up.feed]) * rand(0.85, 1.15);
+        ch.eggT += (C.eggInterval / C.feedSpeed[s.up.feed] / (1 + perk('eggs'))) * rand(0.85, 1.15);
         if (s.eggs.length < G.chickens.length * 2) {
           const spot = quiet ? penPoint() : ch;
           s.eggs.push({ x: Math.round(spot.x), y: Math.round(spot.y) });
@@ -1201,6 +1358,7 @@
       moveWalker(ch, step, 12, penPoint, 0.8, 4);
     });
     G.ducks.forEach(function (duck) { moveWalker(duck, step, 5, duckPoint, 2, 8); });
+    G.ducklings.forEach(function (duckling, i) { followWalker(duckling, i ? G.ducklings[i - 1] : G.ducks[0], step, 9, 7); });
     updateCat(dt, step, quiet);
     if (!quiet) {
       const awake = !isNight() && s.rain <= 0;
@@ -1234,6 +1392,7 @@
     updatePlots(dt, quiet);
     updateAnimals(dt, quiet);
     updateHat(dt);
+    updatePond(dt);
     if (!quiet) {
       updateFarmer(dt);
       G.workers.forEach(function (w) { updateWorker(w, dt); });
@@ -1270,7 +1429,7 @@
         s = Object.assign(base, data);
         s.up = Object.assign(freshState().up, data.up);
         s.settings = Object.assign(defaultSettings(), data.settings);
-        away = Math.min(C.offlineCap[s.up.hammock], Math.max(0, (Date.now() - data.savedAt) / 1000));
+        away = Math.max(0, (Date.now() - data.savedAt) / 1000);
       }
     } catch (e) {
       s = freshState();
@@ -1278,6 +1437,8 @@
     G.state = s;
     G.chickens = [];
     G.ducks = [];
+    G.ducklings = [];
+    G.wish = null;
     G.cat = null;
     G.bees = [];
     G.fireflies = [];
@@ -1287,7 +1448,7 @@
     G.workers = [];
     syncAnimals();
     rebuildNav();
-    return away;
+    return Math.min(offlineCap(), away);
   };
 
   G.reset = function () {
@@ -1296,6 +1457,8 @@
     G.state.settings = settings;
     G.chickens = [];
     G.ducks = [];
+    G.ducklings = [];
+    G.wish = null;
     G.cat = null;
     G.bees = [];
     G.fireflies = [];
@@ -1317,4 +1480,11 @@
   G.offlineCap = offlineCap;
   G.seedCost = seedCost;
   G.itemInfo = itemInfo;
+  G.hasRelic = hasRelic;
+  G.setRelics = setRelics;
+  G.setDone = setDone;
+  G.throwCost = throwCost;
+  G.relicChance = relicChance;
+  G.relicsLeft = relicsLeft;
+  G.ducklingCount = ducklingCount;
 })();

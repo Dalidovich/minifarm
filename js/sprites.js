@@ -720,7 +720,206 @@
   ];
 
   const DUCK = ['......kk..', '.....kwwk.', '.kk.kwwkwo', 'kwwkwwwwk.', 'kwwwwwwwk.', 'kWwwwwwwk.', '.kWWwwwk..', '..kkkkk...'];
+  const DUCKLING = ['....kk.', '...kyyo', '.kkkyyk', 'kyyyyyk', 'kYyyyk.', '.kkkk..'];
   const EGG = ['..kk..', '.kwwk.', 'kwwwWk', 'kwwwWk', 'kwwWWk', '.kWWk.', '..kk..'];
+
+  const RELICS = {
+    sword: [
+      '.....y.....',
+      '.....b.....',
+      '...YyyyY...',
+      '.....w.....',
+      '.....w.....',
+      '.....W.....',
+      '.....w.....',
+      '.....w.....',
+      '..ssswsss..',
+      '.sssswSsss.',
+      'sssssSSssss',
+      'sSsssssSsSs',
+      'SSsSSsSSSsS'
+    ],
+    axe: [
+      '.yyy.b....',
+      'yyyyyb....',
+      'yYyyyb....',
+      'yyyyyb....',
+      '.yYy.b....',
+      '.....b....',
+      '.....b....',
+      '..nnnbnn..',
+      '.nnBnnnnn.',
+      '.bbbbbbbb.',
+      '.bBbbBbbb.',
+      '.bbbBbbBb.'
+    ],
+    fish: [
+      '...wwwwww...',
+      '..cccccccc..',
+      '.cccccycycc.',
+      '.cyccyyyyyc.',
+      'ccyyyyyykycc',
+      '.cyccyyyyyc.',
+      '.cccccccccc.',
+      '..CCCCCCCC..',
+      '...CCCCCC...'
+    ],
+    bottle: [
+      '..bb..',
+      '..cc..',
+      '..cc..',
+      '.cccc.',
+      'cwcccc',
+      'cwwwwc',
+      'cwrrwc',
+      'cwwwwc',
+      'cwwnwc',
+      'cccccc',
+      '.CCCC.'
+    ],
+    ring: [
+      '..yyyyy..',
+      '.yyoYYyy.',
+      'yyY...Yyy',
+      'yo.....Yy',
+      'yY.....oy',
+      'yY.....Yy',
+      'yyY...Yyy',
+      '.yyYoYyy.',
+      '..yyyyy..',
+      '..sssss..',
+      '.sssSsss.',
+      '.SSSSSSS.'
+    ],
+    duck: [
+      '.....yyy..',
+      '....yyyyy.',
+      '....yykyoo',
+      '....yyyyo.',
+      'y..yyyyy..',
+      'yyyyyyyyy.',
+      'yyyYYyyyy.',
+      '.yyyyyyyy.',
+      '..yyyyyy..'
+    ],
+    nessie: [
+      '..GG..........',
+      '.GkGG.........',
+      '.GGGG.........',
+      '...GG.........',
+      '...GG....GG...',
+      '...GGg..GGGG.G',
+      '.ccGGgccGGGGcG',
+      'cccccccccccccc',
+      '.cCCcccCCccCc.'
+    ],
+    frog: [
+      '...y.y.y....',
+      '...yyyyy....',
+      '..GGGGGGG...',
+      '.GwkGGGwkG..',
+      '.GGGGGGGGG..',
+      '.GGlllllGG..',
+      '..GlllllG.yy',
+      '.GGlllllGGyY',
+      'GGG.GGG.GGG.'
+    ],
+    pipe: [
+      'GGGGGGGGGGGG',
+      'GllGGGGGGGgG',
+      'GllGGGGGGGgG',
+      'gggggggggggg',
+      '.GllGGGGGgG.',
+      '.GllGGGGGgG.',
+      '.GllGGGGGgG.',
+      '.GllGGGGGgG.',
+      '.GllGGGGGgG.',
+      '.GllGGGGGgG.'
+    ],
+    rupee: [
+      '..lGg..',
+      '.llGgg.',
+      'lwlGggg',
+      'lwlGggg',
+      'lllGggg',
+      'lllGggg',
+      'lllGggg',
+      '.llGgg.',
+      '..lGg..'
+    ],
+    cube: [
+      'SSSsssssSSS',
+      'SSwwwwwwwSS',
+      'SwwwwwwwwwS',
+      'swwppwppwws',
+      'swwpppppwws',
+      'swwpppppwws',
+      'swwwpppwwws',
+      'swwwwpwwwws',
+      'SwwwwwwwwwS',
+      'SSwwwwwwwSS',
+      'SSSsssssSSS'
+    ],
+    pickaxe: [
+      '..ccccccc..',
+      '.ccCCbCCcc.',
+      'cc...b...cc',
+      'c....b....c',
+      '.....b.....',
+      '.....b.....',
+      '.....b.....',
+      '.....b.....',
+      '..sssbsss..',
+      '.sSsssssSs.'
+    ],
+    tetromino: [
+      'uuuUuuuUuuuU',
+      'uuuUuuuUuuuU',
+      'uuuUuuuUuuuU',
+      'UUUUUUUUUUUU',
+      '....uuuU....',
+      '....uuuU....',
+      '....uuuU....',
+      '....UUUU....'
+    ],
+    muncher: [
+      '..yyyyy.....',
+      '.yyykyyy....',
+      'yyyyyyy.....',
+      'yyyyy.......',
+      'yyyy....w..w',
+      'yyyyy.......',
+      'yyyyyyy.....',
+      '.yyyyyyy....',
+      '..yyyyy.....'
+    ],
+    bonfire: [
+      '.....s.....',
+      '.....s.....',
+      '....sSs....',
+      '.....s.....',
+      '...o.s.o...',
+      '..oyosoyo..',
+      '.ooyyyyyoo.',
+      '.oyywyywyo.',
+      '.BbBoyoBbB.',
+      'BBbbBBBbbBB'
+    ],
+    invader: [
+      '..u.....u..',
+      '...u...u...',
+      '..uuuuuuu..',
+      '.uu.uuu.uu.',
+      'uuuuuuuuuuu',
+      'u.uuuuuuu.u',
+      'u.u.....u.u',
+      '...uu.uu...'
+    ]
+  };
+
+  function relicSprite(rows) {
+    return outline(grid(rows, { w: rows[0].length + 2, h: rows.length + 2, ox: 1, oy: 1 }));
+  }
   const MINI_DROP = ['..k..', '.kck.', '.kck.', 'kcwck', 'kccCk', '.kkk.'];
 
   function plantSprite(rows) {
@@ -966,6 +1165,11 @@
   ];
   const duckRight = [grid(DUCK), grid(DUCK, { pal: brown })];
   S.ducks = duckRight.map(function (duck) { return { right: duck, left: flip(duck) }; });
+  const ducklingRight = grid(DUCKLING);
+  S.duckling = { right: ducklingRight, left: flip(ducklingRight) };
+  S.icons.duckling = grid(DUCKLING, { w: 12, h: 12, ox: 2, oy: 3 });
+  S.relics = {};
+  Object.keys(RELICS).forEach(function (id) { S.relics[id] = relicSprite(RELICS[id]); });
   const catRight = CAT.map(function (rows) { return grid(rows); });
   S.cat = { right: catRight, left: catRight.map(flip) };
 

@@ -72,6 +72,9 @@
     level: function () { [523, 659, 784, 1047, 1319].forEach(function (f, i) { tone(f, 0.22, 'triangle', 0.24, i * 0.11); }); },
     ripe: function () { tone(1320, 0.07, 'sine', 0.06); },
     purr: function () { tone(70, 0.45, 'sawtooth', 0.07); tone(74, 0.45, 'sawtooth', 0.05, 0.04); },
+    toss: function () { tone(620, 0.16, 'triangle', 0.16, 0, 1100); },
+    splash: function () { noise(0.32, 0.3, 1300); noise(0.2, 0.18, 2800, 0.06); },
+    plop: function () { tone(320, 0.18, 'sine', 0.2, 0, 140); },
     wind: function () { noise(0.6, 0.25, 700); noise(0.4, 0.15, 1400, 0.15); },
     lucky: function () { [988, 1319, 1568, 2093].forEach(function (f, i) { tone(f, 0.16, 'square', 0.07, i * 0.06); }); }
   };

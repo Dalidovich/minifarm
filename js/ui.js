@@ -24,7 +24,7 @@
     return '<img class="px ' + (cls || '') + '" src="' + S.url(sprite) + '" alt="">';
   }
 
-  function ico(name, cls) { return img(S.icons[name], cls); }
+  function ico(name, cls) { return img(S.icons[name] || S.relics[name], cls); }
 
   function setText(node, value) {
     const text = String(value);
@@ -59,10 +59,12 @@
       '<div class="card orders"><div class="head">' + t('orders') + '</div><div id="orders"></div></div>' +
       '<div class="btns">' +
         '<button class="btn green" id="btn-shop">' + t('shop') + '<b id="shop-badge">!</b></button>' +
+        '<button class="btn" id="btn-relics">' + t('relics') + ' <span id="relics-count"></span></button>' +
         '<button class="btn" id="btn-settings">' + t('settings') + '</button>' +
       '</div>';
     delete cache.orders;
     $('btn-shop').addEventListener('click', function () { openModal('shop'); });
+    $('btn-relics').addEventListener('click', function () { openModal('relics'); });
     $('btn-settings').addEventListener('click', function () { openModal('settings'); });
     $('orders').addEventListener('click', function (e) {
       const btn = e.target.closest('[data-skip]');
@@ -132,6 +134,37 @@
       '</span><button class="p-x" data-close>×</button></div><div class="p-list">' + items + '</div>';
   }
 
+  function relicHtml(relic) {
+    const found = G.hasRelic(relic.id);
+    return '<div class="item' + (found ? '' : ' missing') + '">' +
+      '<div class="i-icon">' + img(S.relics[relic.id], found ? '' : 'sil') + '</div>' +
+      '<div class="i-text"><div class="i-name">' + (found ? t('relic.' + relic.id) : t('relics.unknown')) + '</div>' +
+      '<div class="i-desc">' + G.perkText(relic) + '</div></div></div>';
+  }
+
+  function relicsHtml() {
+    const s = G.state;
+    const ducklings = G.ducklingCount();
+    const next = C.pond.ducklingAt[ducklings];
+    const facts = [
+      t('relics.cost') + ' ' + ico('coin', 'tiny') + G.throwCost(),
+      t('relics.chance', { pct: Math.round(G.relicChance() * 100) }),
+      t('relics.ducklings', { n: ducklings, max: C.pond.ducklingAt.length }) +
+        (next ? ' · ' + t('relics.nextDuckling', { n: next - s.pond.throws }) : '')
+    ];
+    const sets = C.relicSets.map(function (set) {
+      const relics = G.setRelics(set.id);
+      const found = relics.filter(function (relic) { return G.hasRelic(relic.id); }).length;
+      return '<div class="set-head' + (G.setDone(set.id) ? ' done' : '') + '">' +
+        '<div class="set-name"><span>' + t('relicSet.' + set.id) + '</span><span>' + found + '/' + relics.length + '</span></div>' +
+        '<div class="set-perk">' + t('relics.setPerk') + ' ' + G.perkText(set) + '</div></div>' +
+        relics.map(relicHtml).join('');
+    }).join('');
+    return '<div class="p-head"><span>' + t('relics') + '</span><button class="p-x" data-close>×</button></div>' +
+      '<div class="p-list"><div class="pond-facts">' +
+      (s.up.ducks ? facts.join('<br>') : t('relics.locked')) + '</div>' + sets + '</div>';
+  }
+
   function toggleHtml(key, on, action) {
     return '<div class="s-row"><span>' + t(key) + '</span><button class="btn' + (on ? ' green' : '') + '" data-set="' + action + '">' +
       t(on ? 'set.on' : 'set.off') + '</button></div>';
@@ -157,7 +190,7 @@
     const list = el.panel.querySelector('.p-list');
     const scroll = list ? list.scrollTop : 0;
     const before = cache.panel;
-    setHtml('panel', el.panel, modalKind === 'shop' ? shopHtml() : settingsHtml());
+    setHtml('panel', el.panel, modalKind === 'shop' ? shopHtml() : modalKind === 'relics' ? relicsHtml() : settingsHtml());
     if (before !== cache.panel) {
       const fresh = el.panel.querySelector('.p-list');
       if (fresh) fresh.scrollTop = scroll;
@@ -257,6 +290,16 @@
     if (p.type === 'hat') return t('tip.hat');
     if (p.type === 'cat') return t('tip.cat');
     if (p.type === 'gift') return t('tip.gift');
+    if (p.type === 'relic') {
+      const relic = C.relics.filter(function (item) { return item.id === p.id; })[0];
+      return t('relic.' + p.id) + '<br><small>' + G.perkText(relic) + '</small>';
+    }
+    if (p.type === 'pond') {
+      if (s.pond.find) return t('tip.pondBusy');
+      const cost = G.throwCost();
+      return t('tip.pond') + ' <span class="' + (s.coins < cost ? 'bad' : '') + '">' + ico('coin', 'tiny') + cost + '</span>' +
+        (G.relicsLeft().length ? '<br><small>' + t('relics.chance', { pct: Math.round(G.relicChance() * 100) }) + '</small>' : '');
+    }
     if (p.type === 'tree') return t(s.trees[p.index].apples ? 'tip.tree' : 'tip.treeEmpty');
     const plot = s.plots[p.index];
     if (p.action === 'till') return t('act.till');
@@ -286,7 +329,7 @@
     const p = G.probe(mouse.x, mouse.y);
     MF.render.hover = p;
     const html = tooltipHtml(p);
-    el.canvas.style.cursor = p && (p.type !== 'plot' || p.action) && p.type !== 'house' ? 'pointer' : 'default';
+    el.canvas.style.cursor = p && (p.type !== 'plot' || p.action) && p.type !== 'house' && p.type !== 'relic' ? 'pointer' : 'default';
     if (!html) {
       el.tooltip.classList.add('hidden');
       return;
@@ -316,6 +359,7 @@
       $('st-sky').src = sky;
     }
     $('shop-badge').classList.toggle('hidden', !G.canBuyAny());
+    setText($('relics-count'), s.relics.length + '/' + C.relics.length);
   }
 
   function refreshHint() {
