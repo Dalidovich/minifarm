@@ -210,16 +210,48 @@
     const h = R.hover;
     if (!h || h.type !== 'plot') return;
     ctx.fillStyle = h.action ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)';
-    h.targets.forEach(function (i) {
-      const p = MF.game.plotPos(i);
-      ctx.fillRect(p.x, p.y, 5, 1);
-      ctx.fillRect(p.x, p.y, 1, 5);
-      ctx.fillRect(p.x + 10, p.y, 5, 1);
-      ctx.fillRect(p.x + 14, p.y, 1, 5);
-      ctx.fillRect(p.x, p.y + 14, 5, 1);
-      ctx.fillRect(p.x, p.y + 10, 1, 5);
-      ctx.fillRect(p.x + 10, p.y + 14, 5, 1);
-      ctx.fillRect(p.x + 14, p.y + 10, 1, 5);
+    h.targets.forEach(function (i) { corners(MF.game.plotPos(i)); });
+  }
+
+  function corners(p) {
+    ctx.fillRect(p.x, p.y, 5, 1);
+    ctx.fillRect(p.x, p.y, 1, 5);
+    ctx.fillRect(p.x + 10, p.y, 5, 1);
+    ctx.fillRect(p.x + 14, p.y, 1, 5);
+    ctx.fillRect(p.x, p.y + 14, 5, 1);
+    ctx.fillRect(p.x, p.y + 10, 1, 5);
+    ctx.fillRect(p.x + 10, p.y + 14, 5, 1);
+    ctx.fillRect(p.x + 14, p.y + 10, 1, 5);
+  }
+
+  function drawQueue() {
+    ctx.fillStyle = Math.sin(clock * 8) > 0 ? '#f7d04a' : '#fff7e6';
+    MF.game.queue.forEach(function (task) {
+      if (task.type === 'plot') corners(MF.game.plotPos(task.index));
+      if (task.type === 'go') {
+        ctx.fillRect(Math.round(task.x) - 2, Math.round(task.y), 5, 1);
+        ctx.fillRect(Math.round(task.x), Math.round(task.y) - 1, 1, 3);
+      }
+    });
+  }
+
+  function farmerSprite(f) {
+    const set = S.farmer[f.dir];
+    if (f.state === 'walk') return set.walk[Math.floor(f.step) % 4];
+    if (f.state === 'act' && f.tool && set.act) return set.act[f.tool][f.hit ? 1 : 0];
+    if (f.state === 'idle' && set.idle[2] && f.idleT % 3.2 > 3.05) return set.idle[2];
+    return set.idle[f.state === 'idle' ? Math.floor(f.idleT / 0.6) % 2 : 0];
+  }
+
+  function farmerItem(items) {
+    const f = MF.game.farmer;
+    items.push({
+      y: f.y,
+      draw: function () {
+        const hop = f.state === 'act' && !f.tool && !f.hit ? -2 : 0;
+        shadow(f.x, Math.round(f.y), 10);
+        ctx.drawImage(farmerSprite(f), Math.round(f.x) - S.farmer[f.dir].anchorX, Math.round(f.y) - S.farmerAnchorY + hop);
+      }
     });
   }
 
@@ -233,7 +265,7 @@
         const x = C.field.x + col * C.tile;
         const y = C.field.y + row * C.tile;
         items.push({
-          y: y + 15,
+          y: y + 14,
           draw: function () {
             const stage = stageOf(plot);
             const sway = stage === 3 && Math.sin(clock * 3 + i * 1.7) > 0.7 ? -1 : 0;
@@ -280,7 +312,8 @@
       draw: function () {
         fenceColumn(p.x, p.y + 6, p.h - 2);
         fenceColumn(p.x + p.w - 2, p.y + 6, p.h - 2);
-        fenceRow(p.x, p.y + p.h, p.w);
+        fenceRow(p.x, p.y + p.h, C.penGate.x - p.x);
+        fenceRow(C.penGate.x + C.penGate.w, p.y + p.h, p.x + p.w - C.penGate.x - C.penGate.w);
       }
     });
     MF.game.chickens.forEach(function (ch) {
@@ -345,9 +378,6 @@
       draw: function () {
         shadow(C.well.x + 12, C.well.y + C.well.h - 1, 22);
         ctx.drawImage(S.well, C.well.x, C.well.y);
-        if (s.water <= 0 && !s.up.sprinkler) {
-          ctx.drawImage(S.arrow, C.well.x + 8, C.well.y - 10 + Math.round(Math.sin(clock * 6) * 2));
-        }
       }
     });
     if (s.up.scarecrow) {
@@ -457,12 +487,14 @@
     ctx.drawImage(ground, 0, 0);
     drawPondSparkles();
     drawPlots(s);
+    drawQueue();
     drawHover();
     const items = [];
     staticItems(s, items);
     treeItems(s, items);
     if (s.up.coop > 0) penItems(s, items);
     cropItems(s, items);
+    farmerItem(items);
     items.sort(function (a, b) { return a.y - b.y; });
     items.forEach(function (item) { item.draw(); });
     drawSprinklerMist(s);

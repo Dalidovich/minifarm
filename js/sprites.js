@@ -401,6 +401,20 @@
       '....GGgGg...',
       '.....Gg.....'
     ],
+    boot: [
+      '............',
+      '...kkkkk....',
+      '...kbbbk....',
+      '...kbbbk....',
+      '...kbbbk....',
+      '...kbbbk....',
+      '...kbbbkkk..',
+      '..kbbbbbbbk.',
+      '..kbbbbbbBk.',
+      '..kBBBBBBBk.',
+      '..kkkkkkkkk.',
+      '............'
+    ],
     lantern: [
       '....kkkk....',
       '...kSSSSk...',
@@ -581,7 +595,6 @@
 
   const EGG = ['..kk..', '.kwwk.', 'kwwwWk', 'kwwwWk', 'kwwWWk', '.kWWk.', '..kk..'];
   const MINI_DROP = ['..k..', '.kck.', '.kck.', 'kcwck', 'kccCk', '.kkk.'];
-  const ARROW = ['..kkk..', '..kyk..', '..kyk..', 'kkkykkk', '.kyyyk.', '..kyk..', '...k...'];
 
   function plantSprite(rows) {
     return outline(grid(rows, { w: 18, h: 24, ox: 1, bottom: 2 }), LEAF_OUTLINE);
@@ -799,7 +812,6 @@
   S.glow = glow();
   S.egg = grid(EGG);
   S.miniDrop = grid(MINI_DROP);
-  S.arrow = grid(ARROW);
 
   const brown = { w: '#d9a066', W: '#a8703a' };
   const whiteRight = CHICKEN.map(function (rows) { return grid(rows); });
@@ -811,8 +823,189 @@
   const catRight = CAT.map(function (rows) { return grid(rows); });
   S.cat = { right: catRight, left: catRight.map(flip) };
 
+  const FARMER = {
+    hat: '#f2cf5b', hatDark: '#c9a13a', band: '#d9483b',
+    skin: '#f5c9a0', skinDark: '#dba87c', hair: '#7d4e24', blush: '#f29b8a', eye: '#3b2a22',
+    shirt: '#d9483b', overalls: '#4f7fc4', overallsDark: '#3a5f9c', boot: '#5c3a22',
+    wood: '#a8703a', metal: '#c3ccd2', can: '#5bb4e5', canDark: '#3f7fc4', water: '#8fd3f4',
+    seed: '#f2e2b0', leaf: '#a4de6a'
+  };
+  const FARMER_W = 24;
+  const FARMER_H = 24;
+  const FARMER_OX = 3;
+  const FARMER_OY = 3;
+
+  function farmerFront(U, L, o, back) {
+    const F = FARMER;
+    const liftL = o.legs === 1 ? 1 : 0;
+    const liftR = o.legs === 2 ? 1 : 0;
+    L(F.overallsDark, 5, 16, 3, 2 - liftL);
+    L(F.boot, 5, 18 - liftL, 3, 2);
+    L(F.overallsDark, 8, 16, 3, 2 - liftR);
+    L(F.boot, 8, 18 - liftR, 3, 2);
+    U(F.shirt, 4, 10, 8, 3);
+    U(F.overalls, 4, 13, 8, 3);
+    if (back) {
+      U(F.overalls, 5, 10, 1, 3);
+      U(F.overalls, 10, 10, 1, 3);
+    } else {
+      U(F.overalls, 5, 11, 6, 2);
+      U(F.overalls, 5, 10, 1, 1);
+      U(F.overalls, 10, 10, 1, 1);
+      U(F.overallsDark, 7, 13, 2, 1);
+    }
+    U(F.shirt, 2, 10, 2, 4 - liftL);
+    U(F.skin, 2, 14 - liftL, 2, 1);
+    U(F.shirt, 12, 10, 2, 4 - liftR);
+    U(F.skin, 12, 14 - liftR, 2, 1);
+    U(F.skin, 4, 4, 8, 6);
+    if (back) {
+      U(F.hair, 4, 4, 8, 5);
+    } else {
+      U(F.hair, 4, 4, 1, 2);
+      U(F.hair, 11, 4, 1, 2);
+      if (o.blink) {
+        U(F.skinDark, 6, 7, 1, 1);
+        U(F.skinDark, 9, 7, 1, 1);
+      } else {
+        U(F.eye, 6, 6, 1, 2);
+        U(F.eye, 9, 6, 1, 2);
+      }
+      U(F.blush, 5, 8, 1, 1);
+      U(F.blush, 10, 8, 1, 1);
+    }
+    U(F.hat, 4, 0, 8, 3);
+    U(F.hatDark, 10, 0, 2, 2);
+    U(F.band, 4, 2, 8, 1);
+    U(F.hat, 2, 3, 12, 1);
+  }
+
+  function farmerTool(U, L, o) {
+    const F = FARMER;
+    const raised = o.arm === 'up';
+    if (o.tool === 'hoe' && raised) {
+      U(F.wood, 13, -2, 1, 12);
+      U(F.metal, 14, -2, 3, 2);
+    } else if (o.tool === 'hoe') {
+      [[13, 12], [14, 13], [14, 14], [15, 15], [15, 16], [16, 17]].forEach(function (p) { U(F.wood, p[0], p[1], 1, 1); });
+      L(F.metal, 15, 18, 3, 2);
+    } else if (o.tool === 'can' && raised) {
+      U(F.can, 13, 9, 4, 4);
+      U(F.canDark, 13, 12, 4, 1);
+      U(F.canDark, 17, 9, 2, 1);
+    } else if (o.tool === 'can') {
+      U(F.can, 13, 11, 4, 4);
+      U(F.canDark, 13, 14, 4, 1);
+      U(F.canDark, 17, 13, 1, 1);
+      U(F.canDark, 18, 14, 1, 1);
+      L(F.water, 19, 16, 1, 1);
+      L(F.water, 18, 18, 1, 1);
+      L(F.water, 20, 18, 1, 1);
+    } else if (o.tool === 'seed' && raised) {
+      U(F.seed, 13, 8, 1, 1);
+    } else if (o.tool === 'seed') {
+      L(F.seed, 15, 14, 1, 1);
+      L(F.seed, 16, 16, 1, 1);
+      L(F.seed, 14, 17, 1, 1);
+    } else if (o.tool === 'grab' && raised) {
+      U(F.leaf, 12, 7, 3, 2);
+    }
+  }
+
+  function farmerSide(U, L, o) {
+    const F = FARMER;
+    if (o.legs) {
+      L(F.overallsDark, 5, 16, 3, 1);
+      L(F.overallsDark, 4, 17, 3, 1);
+      L(F.boot, 3, 18, 3, 2);
+      L(F.overallsDark, 8, 16, 3, 1);
+      L(F.overallsDark, 9, 17, 3, 1);
+      L(F.boot, 10, 18, 3, 2);
+    } else {
+      L(F.overallsDark, 6, 16, 4, 2);
+      L(F.boot, 6, 18, 5, 2);
+    }
+    U(F.shirt, 5, 10, 6, 3);
+    U(F.overalls, 5, 13, 6, 3);
+    U(F.overalls, 8, 11, 3, 2);
+    U(F.overalls, 7, 10, 1, 1);
+    U(F.skin, 5, 4, 7, 6);
+    U(F.hair, 5, 4, 2, 4);
+    U(F.skin, 12, 7, 1, 1);
+    if (o.blink) U(F.skinDark, 10, 7, 1, 1);
+    else U(F.eye, 10, 6, 1, 2);
+    U(F.blush, 9, 8, 1, 1);
+    U(F.hat, 5, 0, 7, 3);
+    U(F.hatDark, 5, 0, 2, 2);
+    U(F.band, 5, 2, 7, 1);
+    U(F.hat, 3, 3, 12, 1);
+    farmerTool(U, L, o);
+    if (o.arm === 'fwd') {
+      U(F.shirt, 8, 10, 2, 2);
+      U(F.shirt, 9, 12, 2, 2);
+      U(F.skin, 10, 14, 2, 1);
+    } else if (o.arm === 'back') {
+      U(F.shirt, 6, 10, 2, 2);
+      U(F.shirt, 5, 12, 2, 2);
+      U(F.skin, 4, 14, 2, 1);
+    } else if (o.arm === 'up') {
+      U(F.shirt, 9, 10, 3, 2);
+      U(F.skin, 12, 9, 2, 2);
+    } else if (o.arm === 'down') {
+      U(F.shirt, 9, 11, 3, 2);
+      U(F.skin, 12, 12, 2, 2);
+    } else {
+      U(F.shirt, 7, 10, 2, 4);
+      U(F.skin, 7, 14, 2, 1);
+    }
+  }
+
+  function farmerFrame(dir, o) {
+    const bob = o.bob || 0;
+    return outline(paint(FARMER_W, FARMER_H, function (rect) {
+      const U = function (color, x, y, w, h) { rect(color, FARMER_OX + x, FARMER_OY + y + bob, w, h); };
+      const L = function (color, x, y, w, h) { rect(color, FARMER_OX + x, FARMER_OY + y, w, h); };
+      if (dir === 'right') farmerSide(U, L, o);
+      else farmerFront(U, L, o, dir === 'up');
+    }));
+  }
+
+  function farmerSet(dir) {
+    const side = dir === 'right';
+    const set = {
+      anchorX: FARMER_OX + 8,
+      idle: [farmerFrame(dir, {}), farmerFrame(dir, { bob: 1 })],
+      walk: [
+        farmerFrame(dir, { legs: 1, bob: 1, arm: 'fwd' }),
+        farmerFrame(dir, {}),
+        farmerFrame(dir, { legs: 2, bob: 1, arm: 'back' }),
+        farmerFrame(dir, {})
+      ]
+    };
+    if (dir !== 'up') set.idle.push(farmerFrame(dir, { blink: true }));
+    if (side) {
+      set.act = {};
+      ['hoe', 'can', 'seed'].forEach(function (tool) {
+        set.act[tool] = [farmerFrame(dir, { arm: 'up', tool: tool }), farmerFrame(dir, { arm: 'down', tool: tool, bob: 1 })];
+      });
+      set.act.grab = [farmerFrame(dir, { arm: 'down', bob: 1 }), farmerFrame(dir, { arm: 'up', tool: 'grab' })];
+    }
+    return set;
+  }
+
+  function flipSet(set) {
+    const out = { anchorX: FARMER_W - set.anchorX, idle: set.idle.map(flip), walk: set.walk.map(flip), act: {} };
+    Object.keys(set.act).forEach(function (tool) { out.act[tool] = set.act[tool].map(flip); });
+    return out;
+  }
+
+  const farmerRight = farmerSet('right');
+  S.farmer = { down: farmerSet('down'), up: farmerSet('up'), right: farmerRight, left: flipSet(farmerRight) };
+  S.farmerAnchorY = FARMER_OY + 20;
+
   S.shopIcons = {
     field: S.tiles.soil,
+    boots: S.icons.boot,
     can: S.icons.can,
     tool: S.icons.hoe,
     fert: S.icons.bag,

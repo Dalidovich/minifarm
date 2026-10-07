@@ -354,12 +354,12 @@
       trackMouse(e);
       mouse.down = true;
       stroke = new Set();
-      G.act(G.probe(mouse.x, mouse.y), stroke, false);
+      G.command(G.probe(mouse.x, mouse.y), stroke, false, mouse.x, mouse.y);
       refreshHover();
     });
     el.canvas.addEventListener('mousemove', function (e) {
       trackMouse(e);
-      if (mouse.down) G.act(G.probe(mouse.x, mouse.y), stroke, true);
+      if (mouse.down) G.command(G.probe(mouse.x, mouse.y), stroke, true, mouse.x, mouse.y);
       refreshHover();
     });
     el.canvas.addEventListener('mouseleave', function () {

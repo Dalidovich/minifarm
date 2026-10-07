@@ -37,7 +37,6 @@ MF.locales.en = {
   'tip.house': 'Home, sweet home',
 
   'msg.noCoins': 'Not enough coins',
-  'msg.noWater': 'The can is empty!',
   'msg.full': 'Full!',
 
   'toast.level': 'Level {n}!',
@@ -53,8 +52,7 @@ MF.locales.en = {
   'hint.water': 'Seeds need water. Click them to water.',
   'hint.wait': 'Nice! Now wait for it to grow…',
   'hint.harvest': 'It is ripe! Click to harvest.',
-  'hint.drag': 'Tip: hold the mouse button and drag across the beds. Soil dries out — keep it watered.',
-  'hint.well': 'The watering can is empty. Click the well to refill it.',
+  'hint.drag': 'Tip: hold the mouse button and drag across the beds — the farmer will do them one by one. Soil dries out, keep it watered.',
   'hint.shop': 'You have saved up some coins. Take a look at the shop!',
 
   'shop.buy': 'Buy',
@@ -63,6 +61,8 @@ MF.locales.en = {
   'up.field.desc': 'Extra beds for your field.',
   'up.can.name': 'Bigger watering can',
   'up.can.desc': 'Holds more water, and the soil stays wet longer.',
+  'up.boots.name': 'Comfy boots',
+  'up.boots.desc': 'The farmer walks faster.',
   'up.tool.name': 'Better tools',
   'up.tool.desc': 'Work several beds with a single click.',
   'up.fert.name': 'Fertilizer',
