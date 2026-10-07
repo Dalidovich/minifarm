@@ -143,7 +143,6 @@
   function orderLeft(o) { return o.need - o.have; }
   function orderReady(o) { return !!o.item && !!G.state.up.barn && stockOf(o.item) >= orderLeft(o); }
   function orderHave(o) { return G.state.up.barn ? Math.min(o.need, o.have + stockOf(o.item)) : o.have; }
-  function orderPay(o) { return G.state.up.barn ? o.coins + orderLeft(o) * priceOf(itemInfo(o.item)) : o.coins; }
 
   function isUnlocked(col, row) {
     const size = fieldSize();
@@ -251,16 +250,17 @@
     s.orders.forEach(function (o, i) {
       if (o.item !== item) return;
       o.have += count;
-      if (o.have >= o.need) completeOrder(i, o.coins);
+      if (o.have >= o.need) completeOrder(i, 0);
     });
   }
 
-  function completeOrder(index, coins) {
+  function completeOrder(index, goods) {
     const s = G.state;
-    gain(coins);
+    const o = s.orders[index];
+    gain(o.coins + goods);
     s.stats.orders++;
-    addXp(s.orders[index].xp);
-    MF.ui.toast(MF.t('toast.order') + ' +' + coins, 'coin');
+    addXp(o.xp);
+    MF.ui.toast(MF.t('toast.order') + ' +' + o.coins + (goods ? ' · ' + MF.t('toast.orderGoods', { n: goods }) : ''), 'coin');
     MF.audio.play('order');
     s.orders[index] = { wait: C.orderDelay };
   }
@@ -1163,9 +1163,9 @@
   G.deliver = function (index) {
     const o = G.state.orders[index];
     if (!orderReady(o)) return MF.audio.play('error');
-    const pay = orderPay(o);
-    takeStock(o.item, orderLeft(o));
-    completeOrder(index, pay);
+    const count = orderLeft(o);
+    takeStock(o.item, count);
+    completeOrder(index, count * priceOf(itemInfo(o.item)));
     G.save();
   };
 
@@ -1643,7 +1643,6 @@
   G.stockValue = stockValue;
   G.orderReady = orderReady;
   G.orderHave = orderHave;
-  G.orderPay = orderPay;
   G.hasRelic = hasRelic;
   G.setRelics = setRelics;
   G.setDone = setDone;

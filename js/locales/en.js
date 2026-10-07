@@ -67,6 +67,7 @@ MF.locales.en = {
   'toast.newShop': 'New goods in the shop',
   'toast.rain': 'It is raining. The beds water themselves.',
   'toast.order': 'Order complete!',
+  'toast.orderGoods': 'goods +{n}',
   'toast.barn': 'The barn is built. Your harvest is kept there now: sell it when the price is right or deliver it to orders.',
   'toast.daily': 'Crop of the day: {name}. It sells for {pct}% more.',
   'toast.insider': 'The insider whispers: the crop of the day tomorrow is {name}.',

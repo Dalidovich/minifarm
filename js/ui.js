@@ -115,7 +115,7 @@
       const ready = G.orderReady(o);
       return '<div class="order' + (ready ? ' ready' : '') + '">' + ico(o.item) +
         '<div class="o-main"><div class="o-top"><span>' + have + '/' + o.need + '</span>' +
-        '<span class="o-rew">' + ico('coin', 'tiny') + G.orderPay(o) + '</span></div>' +
+        '<span class="o-rew">' + ico('coin', 'tiny') + o.coins + '</span></div>' +
         (ready ? '<button class="btn green o-ok" data-deliver="' + i + '">' + t('orderDeliver') + '</button>' :
           '<div class="bar"><i style="width:' + pct + '%"></i></div>') + '</div>' +
         '<button class="o-x" data-skip="' + i + '" aria-label="' + t('orderSkip') + '">×</button></div>';
