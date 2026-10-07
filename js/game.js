@@ -252,7 +252,7 @@
         if (golden) {
           lucky = true;
           MF.render.burst(pos.x + 8, pos.y + 6, ['#f7d04a', '#fff7e6', '#d6a021'], 18);
-          MF.ui.float(pos.x + 8, pos.y - 8, MF.t('msg.lucky', { n: C.luckBonus }), 'lucky');
+          MF.ui.float(pos.x + 8, pos.y - 14, MF.t('msg.lucky', { n: C.luckBonus }), 'lucky');
         } else MF.render.burst(pos.x + 8, pos.y + 6, ['#fff7e6', '#f7d04a', '#a4de6a'], 7);
       }
       stroke.add(i);

@@ -88,7 +88,7 @@ MF.locales.en = {
   'up.cat.name': 'Cat',
   'up.cat.desc': 'Does nothing useful. Perfect.',
   'up.clover.name': 'Lucky clover',
-  'up.clover.desc': 'Now and then a harvest turns out golden and sells for many times the price.',
+  'up.clover.desc': 'Sometimes a harvest turns out golden.',
 
   'set.sound': 'Sounds',
   'set.music': 'Music',
