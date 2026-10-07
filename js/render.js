@@ -447,14 +447,37 @@
         items.push({ y: spot[1] + 22, draw: function () { ctx.drawImage(S.lantern, spot[0], spot[1]); } });
       });
     }
+    C.relics.forEach(function (relic) {
+      if (!MF.game.hasRelic(relic.id)) return;
+      const sprite = S.relics[relic.id];
+      items.push({
+        y: relic.spot[1],
+        draw: function () {
+          shadow(relic.spot[0], relic.spot[1], sprite.width - 2);
+          ctx.drawImage(sprite, relic.spot[0] - Math.floor(sprite.width / 2), relic.spot[1] - sprite.height + 1);
+        }
+      });
+    });
     MF.game.ducks.forEach(function (duck, i) {
       items.push({
         y: duck.y,
         draw: function () {
           const x = Math.round(duck.x);
           const y = Math.round(duck.y) + (Math.sin(clock * 2 + i * 2) > 0.6 ? 1 : 0);
+          if (isDiving(duck)) return drawRipples(x, y);
           ctx.drawImage(S.ducks[duck.look][duck.left ? 'left' : 'right'], x - 5, y - 7);
           rect(ctx, '#c9ecfb', x - 5, y + 1, 10, 1);
+        }
+      });
+    });
+    MF.game.ducklings.forEach(function (duckling, i) {
+      items.push({
+        y: duckling.y,
+        draw: function () {
+          const x = Math.round(duckling.x);
+          const y = Math.round(duckling.y) + (Math.sin(clock * 3 + i * 1.3) > 0.6 ? 1 : 0);
+          ctx.drawImage(S.duckling[duckling.left ? 'left' : 'right'], x - 3, y - 5);
+          rect(ctx, '#c9ecfb', x - 4, y + 1, 8, 1);
         }
       });
     });
@@ -492,6 +515,30 @@
       rect(ctx, 'rgba(234,255,138,0.4)', x, y - 1, 1, 3);
       rect(ctx, '#f4ffb0', x, y, 1, 1);
     });
+  }
+
+  function isDiving(duck) {
+    const wish = MF.game.wish;
+    return !!wish && wish.duck === duck && wish.t >= C.pond.toss;
+  }
+
+  function drawRipples(x, y) {
+    const wide = Math.floor(clock * 5) % 2;
+    rect(ctx, '#e8f7ff', x - 3 - wide * 2, y - 1, 6 + wide * 4, 1);
+    rect(ctx, '#c9ecfb', x - 5 - wide, y + 1, 10 + wide * 2, 1);
+    if (Math.random() < 0.12) R.burst(x, y - 1, ['#e8f7ff', '#c9ecfb'], 1);
+  }
+
+  function drawToss() {
+    const wish = MF.game.wish;
+    if (!wish || wish.t >= C.pond.toss) return;
+    const k = wish.t / C.pond.toss;
+    const x = Math.round(wish.x + (wish.duck.x - wish.x) * k);
+    const y = Math.round(wish.y + (wish.duck.y - wish.y) * k - Math.sin(k * Math.PI) * 16);
+    rect(ctx, '#3b2a22', x - 1, y - 2, 3, 5);
+    rect(ctx, '#3b2a22', x - 2, y - 1, 5, 3);
+    rect(ctx, '#f7d04a', x - 1, y - 1, 3, 3);
+    rect(ctx, '#fff7e6', x - 1, y - 1, 1, 1);
   }
 
   function drawPondSparkles() {
@@ -585,6 +632,7 @@
     farmerItem(items);
     items.sort(function (a, b) { return a.y - b.y; });
     items.forEach(function (item) { item.draw(); });
+    drawToss();
     drawBees();
     drawSprinklerMist(s);
     drawParticles(dt);

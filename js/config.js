@@ -56,6 +56,43 @@ MF.config = {
   fireflies: { max: 5, every: [5, 12], life: [14, 24], coins: [1, 3] },
   catGift: { every: [150, 300], spot: { x: 57, y: 90 }, coin: [2, 5], gem: 40, gemChance: 0.1, cropChance: 0.35, petSkip: 20, petCooldown: 30 },
   hat: { warn: 40, flight: 1.1, zone: { x: 62, y: 134, w: 40, h: 44 } },
+  pond: {
+    x: 40, y: 230, rx: 30, ry: 17,
+    stand: { x: 78, y: 226 },
+    throwCost: [50, 80, 120, 180, 260, 380, 550, 800, 1100, 1500],
+    toss: 0.45,
+    dive: 1.3,
+    relicChance: 0.1,
+    ducklingChance: 0.03,
+    pity: 12,
+    ducklingAt: [3, 8, 15, 24],
+    gemChance: 0.07,
+    coinChance: 0.55,
+    coin: [0.3, 1],
+    gem: [2.5, 4]
+  },
+  relicSets: [
+    { id: 'lost', bonus: 'grow', value: 0.1 },
+    { id: 'games', bonus: 'price', value: 0.1 }
+  ],
+  relics: [
+    { id: 'sword', set: 'lost', bonus: 'grow', crop: 'radish', value: 0.1, spot: [118, 70] },
+    { id: 'axe', set: 'lost', bonus: 'grow', crop: 'carrot', value: 0.1, spot: [135, 70] },
+    { id: 'fish', set: 'lost', bonus: 'grow', crop: 'potato', value: 0.1, spot: [152, 70] },
+    { id: 'bottle', set: 'lost', bonus: 'grow', crop: 'tomato', value: 0.1, spot: [169, 70] },
+    { id: 'ring', set: 'lost', bonus: 'grow', crop: 'corn', value: 0.1, spot: [186, 70] },
+    { id: 'duck', set: 'lost', bonus: 'grow', crop: 'pumpkin', value: 0.1, spot: [203, 70] },
+    { id: 'nessie', set: 'lost', bonus: 'grow', crop: 'strawberry', value: 0.1, spot: [220, 70] },
+    { id: 'frog', set: 'lost', bonus: 'grow', crop: 'sunflower', value: 0.1, spot: [237, 70] },
+    { id: 'pipe', set: 'games', bonus: 'walk', value: 0.1, spot: [114, 180] },
+    { id: 'rupee', set: 'games', bonus: 'seeds', value: 0.08, spot: [130, 180] },
+    { id: 'cube', set: 'games', bonus: 'gifts', value: 0.15, spot: [146, 180] },
+    { id: 'pickaxe', set: 'games', bonus: 'luck', value: 0.02, spot: [162, 180] },
+    { id: 'tetromino', set: 'games', bonus: 'orders', value: 0.1, spot: [194, 180] },
+    { id: 'muncher', set: 'games', bonus: 'eggs', value: 0.1, spot: [210, 180] },
+    { id: 'bonfire', set: 'games', bonus: 'offline', value: 0.15, spot: [226, 180] },
+    { id: 'invader', set: 'games', bonus: 'daily', value: 0.1, spot: [242, 180] }
+  ],
   crops: [
     { id: 'radish', level: 1, cost: 2, sell: 6, time: 20, xp: 1 },
     { id: 'carrot', level: 2, cost: 5, sell: 12, time: 40, xp: 2 },
