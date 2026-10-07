@@ -136,7 +136,7 @@ MF.config = {
     { id: 'hammock', levels: [{ cost: 400, level: 3 }, { cost: 2500, level: 6 }] },
     { id: 'almanac', levels: [{ cost: 300, level: 3 }] },
     { id: 'flowers', levels: [{ cost: 100, level: 1 }] },
-    { id: 'scarecrow', levels: [{ cost: 250, level: 2 }] },
+    { id: 'scarecrow', levels: [{ cost: 100, level: 2 }] },
     { id: 'lanterns', levels: [{ cost: 600, level: 3 }] },
     { id: 'ducks', levels: [{ cost: 800, level: 3 }] },
     { id: 'cat', levels: [{ cost: 1000, level: 4 }] }
