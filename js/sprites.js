@@ -555,6 +555,20 @@
       '..kkkkkkkk..',
       '............'
     ],
+    crate: [
+      '............',
+      '.kkkkkkkkkk.',
+      '.knnnnnnnnk.',
+      '.kkkkkkkkkk.',
+      '.kbnbBBbnbk.',
+      '.kbbnBBnbbk.',
+      '.kbBBnnBBbk.',
+      '.kbBBnnBBbk.',
+      '.kbbnBBnbbk.',
+      '.kbnbBBbnbk.',
+      '.kkkkkkkkkk.',
+      '............'
+    ],
     insider: [
       '............',
       '............',
@@ -1060,6 +1074,27 @@
     }));
   }
 
+  function barn() {
+    return outline(paint(40, 36, function (rect) {
+      rect('#c8553d', 4, 16, 32, 18);
+      [21, 26, 31].forEach(function (y) { rect('#a63b2e', 4, y, 32, 1); });
+      for (let i = 0; i < 14; i++) {
+        const half = i < 6 ? 7 + Math.round(i * 1.6) : 16 + Math.round((i - 6) * 0.45);
+        rect(i % 3 === 2 ? '#6b757d' : '#9aa5ad', 20 - half, 2 + i, half * 2, 1);
+      }
+      rect('#fff7e6', 12, 19, 16, 15);
+      rect('#a8703a', 13, 20, 14, 14);
+      rect('#fff7e6', 19, 20, 2, 14);
+      for (let i = 0; i < 6; i++) {
+        rect('#fff7e6', 13 + i, 21 + i * 2, 1, 2);
+        rect('#fff7e6', 26 - i, 21 + i * 2, 1, 2);
+      }
+      rect('#3b2a22', 30, 19, 4, 4);
+      rect('#f7d04a', 31, 20, 2, 2);
+      rect('#c8914f', 11, 34, 18, 1);
+    }));
+  }
+
   function well() {
     return outline(paint(24, 30, function (rect) {
       for (let i = 0; i < 6; i++) {
@@ -1162,6 +1197,7 @@
   S.appleTree = tree(21, ['#4a9440', '#66b84e', '#8fd466']);
   S.coop = coop();
   S.well = well();
+  S.barn = barn();
   S.scarecrow = scarecrow(true);
   S.scarecrowBare = scarecrow(false);
   S.hat = hat();
@@ -1391,6 +1427,7 @@
     fert: S.icons.bag,
     sprinkler: S.icons.sprinkler,
     seeds: S.icons.seeds,
+    barn: S.barn,
     market: S.icons.market,
     sign: S.icons.sign,
     insider: S.icons.insider,

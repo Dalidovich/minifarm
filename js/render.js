@@ -408,6 +408,15 @@
         ctx.drawImage(S.well, C.well.x, C.well.y);
       }
     });
+    if (s.up.barn) {
+      items.push({
+        y: C.barn.y + C.barn.h - 1,
+        draw: function () {
+          shadow(C.barn.x + 20, C.barn.y + C.barn.h - 2, 36);
+          ctx.drawImage(S.barn, C.barn.x, C.barn.y);
+        }
+      });
+    }
     if (s.up.scarecrow) {
       items.push({
         y: C.scarecrow.y + 30,

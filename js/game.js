@@ -18,6 +18,7 @@
   let fireflyIn = 0;
   let petWait = 0;
   let warnAt = 0;
+  let fullAt = 0;
   let ripeSoundAt = 0;
   let navCols = 0;
   let navRows = 0;
@@ -60,6 +61,7 @@
       eggs: [],
       trees: [],
       orders: [{ wait: 45 }, { wait: 150 }, { wait: 300 }],
+      stock: {},
       rain: 0,
       rainIn: 420,
       daily: null,
@@ -128,6 +130,20 @@
     return Math.round(item.sell * C.houseBonus[G.state.up.house] * (1 + perk('price')) * (isDaily(item.id) ? dailyBonus() : 1));
   }
   function itemInfo(id) { return cropById[id] || C.products[id]; }
+  function barnCapacity() { return C.barnCapacity[G.state.up.barn]; }
+  function stockOf(id) { return G.state.stock[id] || 0; }
+  function stockTotal() {
+    const stock = G.state.stock;
+    return Object.keys(stock).reduce(function (sum, id) { return sum + stock[id]; }, 0);
+  }
+  function stockValue() {
+    const stock = G.state.stock;
+    return Object.keys(stock).reduce(function (sum, id) { return sum + stock[id] * priceOf(itemInfo(id)); }, 0);
+  }
+  function orderLeft(o) { return o.need - o.have; }
+  function orderReady(o) { return !!o.item && !!G.state.up.barn && stockOf(o.item) >= orderLeft(o); }
+  function orderHave(o) { return G.state.up.barn ? Math.min(o.need, o.have + stockOf(o.item)) : o.have; }
+  function orderPay(o) { return G.state.up.barn ? o.coins + orderLeft(o) * priceOf(itemInfo(o.item)) : o.coins; }
 
   function isUnlocked(col, row) {
     const size = fieldSize();
@@ -220,6 +236,7 @@
     if (item === 'egg') need = randInt(3, 3 + s.up.coop * 2);
     else if (item === 'apple') need = randInt(3, 2 + s.up.trees * 3);
     else need = Math.max(3, Math.round(size[0] * size[1] * rand(0.5, 1.3)));
+    if (s.up.barn) need = Math.min(need, barnCapacity());
     return {
       item: item,
       need: need,
@@ -234,15 +251,75 @@
     s.orders.forEach(function (o, i) {
       if (o.item !== item) return;
       o.have += count;
-      if (o.have >= o.need) {
-        gain(o.coins);
-        s.stats.orders++;
-        addXp(o.xp);
-        MF.ui.toast(MF.t('toast.order') + ' +' + o.coins, 'coin');
-        MF.audio.play('order');
-        s.orders[i] = { wait: C.orderDelay };
-      }
+      if (o.have >= o.need) completeOrder(i, o.coins);
     });
+  }
+
+  function completeOrder(index, coins) {
+    const s = G.state;
+    gain(coins);
+    s.stats.orders++;
+    addXp(s.orders[index].xp);
+    MF.ui.toast(MF.t('toast.order') + ' +' + coins, 'coin');
+    MF.audio.play('order');
+    s.orders[index] = { wait: C.orderDelay };
+  }
+
+  function fitOrders() {
+    const cap = barnCapacity();
+    G.state.orders.forEach(function (o) {
+      if (!o.item || orderLeft(o) <= cap) return;
+      const need = o.have + cap;
+      o.coins = Math.round((o.coins * need) / o.need);
+      o.xp = Math.max(1, Math.round((o.xp * need) / o.need));
+      o.need = need;
+    });
+  }
+
+  function barnFull() {
+    const now = performance.now();
+    if (now - fullAt < 4000) return;
+    fullAt = now;
+    MF.ui.float(C.barn.x + C.barn.w / 2, C.barn.y + 8, MF.t('msg.barnFull'), 'warn');
+  }
+
+  function bank(id, count) {
+    const s = G.state;
+    const price = priceOf(itemInfo(id));
+    if (!s.up.barn) {
+      progressOrders(id, count);
+      return count * price;
+    }
+    const kept = Math.min(count, barnCapacity() - stockTotal());
+    if (kept > 0) s.stock[id] = stockOf(id) + kept;
+    if (kept < count) barnFull();
+    return (count - kept) * price;
+  }
+
+  function showHaul(kept, coins, x, y) {
+    if (coins) earn(coins, x, y);
+    if (kept) MF.ui.float(x, y - (coins ? 9 : 0), MF.t('msg.stored', { n: kept }), 'info');
+  }
+
+  function haul(id, count, x, y) {
+    const before = stockTotal();
+    const coins = bank(id, count);
+    showHaul(stockTotal() - before, coins, x, y);
+    return coins;
+  }
+
+  function takeStock(id, count) {
+    const stock = G.state.stock;
+    stock[id] -= count;
+    if (stock[id] <= 0) delete stock[id];
+  }
+
+  function sellStock(id, count) {
+    const sold = Math.min(stockOf(id), count);
+    if (!sold) return 0;
+    takeStock(id, sold);
+    gain(sold * priceOf(itemInfo(id)));
+    return sold;
   }
 
   function areaTargets(index, action) {
@@ -288,6 +365,7 @@
       if (x >= spot[0] - 14 && x < spot[0] + 14 && y >= spot[1] - 40 && y < spot[1]) return { type: 'tree', index: i };
     }
     if (inRect(x, y, C.well)) return { type: 'well' };
+    if (s.up.barn && inRect(x, y, C.barn)) return { type: 'barn' };
     if (s.up.ducks && inPond(x, y)) return { type: 'pond' };
     for (let i = 0; i < C.relics.length; i++) {
       const relic = C.relics[i];
@@ -311,6 +389,7 @@
     const center = plotPos(p.index);
     const cx = center.x + 8;
     const cy = center.y;
+    const before = stockTotal();
     let done = 0;
     let gained = 0;
     let spent = 0;
@@ -346,13 +425,12 @@
         const crop = cropById[plot.crop];
         const golden = Math.random() < C.luckChance[s.up.clover] + perk('luck');
         const count = plot.pollen ? C.bees.bonus : 1;
-        gained += priceOf(crop) * count * (golden ? C.luckBonus : 1);
+        gained += bank(crop.id, count) + (golden ? priceOf(crop) * count * (C.luckBonus - 1) : 0);
         addXp(crop.xp);
         plot.kind = 'soil';
         plot.crop = null;
         plot.growth = 0;
         plot.pollen = false;
-        progressOrders(crop.id, count);
         countItem(crop.id, count);
         if (golden) s.stats.golden++;
         if (count > 1) s.stats.pollinated++;
@@ -370,10 +448,8 @@
     }
     if (done) {
       MF.audio.play(p.action);
-      if (gained) {
-        earn(gained, cx, cy);
-        MF.audio.play(lucky ? 'lucky' : 'coin');
-      }
+      showHaul(stockTotal() - before, gained, cx, cy);
+      if (gained) MF.audio.play(lucky ? 'lucky' : 'coin');
       if (spent) MF.ui.float(cx, cy, '-' + spent, 'spend');
       advanceTutorial(p.action);
     }
@@ -407,9 +483,8 @@
   function collectEgg(index) {
     const s = G.state;
     const egg = s.eggs.splice(index, 1)[0];
-    earn(priceOf(C.products.egg), egg.x, egg.y - 8);
+    haul('egg', 1, egg.x, egg.y - 8);
     addXp(C.products.egg.xp);
-    progressOrders('egg', 1);
     countItem('egg', 1);
     MF.render.burst(egg.x, egg.y - 3, ['#fff7e6', '#f7d04a'], 5);
     MF.audio.play('egg');
@@ -422,13 +497,12 @@
     if (!tree.apples) return;
     const count = tree.apples;
     tree.apples = 0;
-    earn(priceOf(C.products.apple) * count, spot[0], spot[1] - 40);
+    const coins = haul('apple', count, spot[0], spot[1] - 40);
     addXp(C.products.apple.xp * count);
-    progressOrders('apple', count);
     countItem('apple', count);
     MF.render.burst(spot[0], spot[1] - 24, ['#d9483b', '#a4de6a', '#fff7e6'], 10);
     MF.audio.play('harvest');
-    MF.audio.play('coin');
+    if (coins) MF.audio.play('coin');
   }
 
   function catchFirefly(index) {
@@ -455,10 +529,8 @@
     const spot = C.catGift.spot;
     s.gift = null;
     s.stats.gifts++;
-    if (gift.kind === 'crop') {
-      earn(priceOf(cropById[gift.crop]), spot.x, spot.y - 12);
-      progressOrders(gift.crop, 1);
-    } else earn(gift.coins, spot.x, spot.y - 12);
+    if (gift.kind === 'crop') haul(gift.crop, 1, spot.x, spot.y - 12);
+    else earn(gift.coins, spot.x, spot.y - 12);
     MF.render.burst(spot.x, spot.y - 4, ['#fff7e6', '#f7d04a', '#f29bb5'], 8);
     MF.audio.play('coin');
   }
@@ -619,6 +691,7 @@
       blockRect(C.penGate.x + C.penGate.w, bottom, p.x + p.w - C.penGate.x - C.penGate.w, CELL);
     }
     s.trees.forEach(function (tree, i) { blockRect(C.treeSpots[i][0] - 4, C.treeSpots[i][1] - 8, 8, 8); });
+    if (s.up.barn) blockRect(C.barn.x + 4, C.barn.y + 16, C.barn.w - 8, C.barn.h - 18);
     if (s.up.scarecrow) blockRect(C.scarecrow.x + 4, C.scarecrow.y + 22, 10, 8);
     if (s.up.lanterns) C.lanternSpots.forEach(function (spot) { blockRect(spot[0] + 2, spot[1] + 16, 4, 6); });
   }
@@ -1011,6 +1084,7 @@
     if (p.type === 'firefly') return catchFirefly(p.index);
     if (p.type === 'hat') return returnHat();
     if (p.type === 'cat') return petCat();
+    if (p.type === 'barn') return MF.ui.open('barn');
     if (p.type === 'gift') {
       if (!queued('gift')) enqueue({ type: 'gift' });
       return;
@@ -1056,6 +1130,10 @@
     s.up[id]++;
     if (id === 'can') s.water = canCapacity();
     if (id === 'trees') s.trees.push({ apples: 0, t: C.appleInterval });
+    if (id === 'barn' && s.up.barn === 1) {
+      fitOrders();
+      MF.ui.toast(MF.t('toast.barn'), 'crate');
+    }
     if (s.tut < FINAL_TUTORIAL_STEP) s.tut = FINAL_TUTORIAL_STEP;
     syncAnimals();
     rebuildNav();
@@ -1080,6 +1158,28 @@
 
   G.skipOrder = function (index) {
     if (G.state.orders[index].item) G.state.orders[index] = { wait: C.orderSkipDelay };
+  };
+
+  G.deliver = function (index) {
+    const o = G.state.orders[index];
+    if (!orderReady(o)) return MF.audio.play('error');
+    const pay = orderPay(o);
+    takeStock(o.item, orderLeft(o));
+    completeOrder(index, pay);
+    G.save();
+  };
+
+  G.sell = function (id, count) {
+    if (!sellStock(id, count)) return;
+    MF.audio.play('coin');
+    G.save();
+  };
+
+  G.sellAll = function () {
+    const sold = Object.keys(G.state.stock).reduce(function (sum, id) { return sum + sellStock(id, Infinity); }, 0);
+    if (!sold) return;
+    MF.audio.play('coin');
+    G.save();
   };
 
   G.ripening = function (plot) {
@@ -1537,6 +1637,13 @@
   G.offlineCap = offlineCap;
   G.seedCost = seedCost;
   G.itemInfo = itemInfo;
+  G.barnCapacity = barnCapacity;
+  G.stockOf = stockOf;
+  G.stockTotal = stockTotal;
+  G.stockValue = stockValue;
+  G.orderReady = orderReady;
+  G.orderHave = orderHave;
+  G.orderPay = orderPay;
   G.hasRelic = hasRelic;
   G.setRelics = setRelics;
   G.setDone = setDone;

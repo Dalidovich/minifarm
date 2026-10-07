@@ -56,7 +56,9 @@
         '<div class="bar blue"><i id="st-waterbar"></i></div>' +
         '<div class="row"><img class="px" id="st-sky" alt=""><span id="st-day"></span><span id="st-clock"></span></div>' +
       '</div>' +
-      '<div class="card orders"><div class="head">' + t('orders') + '</div><div id="orders"></div></div>' +
+      '<div class="card orders"><div class="head">' + t('orders') +
+        '<button class="stock" id="btn-barn">' + ico('crate', 'tiny') + '<span id="barn-count"></span></button></div>' +
+        '<div id="orders"></div></div>' +
       '<div class="btns">' +
         '<button class="btn green" id="btn-shop">' + t('shop') + '<b id="shop-badge">!</b></button>' +
         '<button class="btn" id="btn-relics">' + t('relics') + ' <span id="relics-count"></span></button>' +
@@ -68,13 +70,18 @@
     delete cache.orders;
     $('btn-shop').addEventListener('click', function () { openModal('shop'); });
     $('btn-relics').addEventListener('click', function () { openModal('relics'); });
+    $('btn-barn').addEventListener('click', function () { openModal('barn'); });
     $('btn-stats').addEventListener('click', function () { openModal('stats'); });
     $('btn-settings').addEventListener('click', function () { openModal('settings'); });
     $('orders').addEventListener('click', function (e) {
-      const btn = e.target.closest('[data-skip]');
+      const btn = e.target.closest('button');
       if (!btn) return;
-      G.skipOrder(Number(btn.dataset.skip));
-      MF.audio.play('click');
+      if (btn.dataset.deliver) G.deliver(Number(btn.dataset.deliver));
+      else {
+        G.skipOrder(Number(btn.dataset.skip));
+        MF.audio.play('click');
+      }
+      U.refresh();
     });
   }
 
@@ -103,11 +110,14 @@
   function ordersHtml() {
     return G.state.orders.map(function (o, i) {
       if (!o.item) return '<div class="order wait">' + t('orderWait') + '</div>';
-      const pct = Math.min(100, Math.round((o.have / o.need) * 100));
-      return '<div class="order">' + ico(o.item) +
-        '<div class="o-main"><div class="o-top"><span>' + o.have + '/' + o.need + '</span>' +
-        '<span class="o-rew">' + ico('coin', 'tiny') + o.coins + '</span></div>' +
-        '<div class="bar"><i style="width:' + pct + '%"></i></div></div>' +
+      const have = G.orderHave(o);
+      const pct = Math.min(100, Math.round((have / o.need) * 100));
+      const ready = G.orderReady(o);
+      return '<div class="order' + (ready ? ' ready' : '') + '">' + ico(o.item) +
+        '<div class="o-main"><div class="o-top"><span>' + have + '/' + o.need + '</span>' +
+        '<span class="o-rew">' + ico('coin', 'tiny') + G.orderPay(o) + '</span></div>' +
+        (ready ? '<button class="btn green o-ok" data-deliver="' + i + '">' + t('orderDeliver') + '</button>' :
+          '<div class="bar"><i style="width:' + pct + '%"></i></div>') + '</div>' +
         '<button class="o-x" data-skip="' + i + '" aria-label="' + t('orderSkip') + '">×</button></div>';
     }).join('');
   }
@@ -139,6 +149,33 @@
     }).join('');
     return '<div class="p-head"><span>' + t('shop') + '</span><span class="p-coins">' + ico('coin') + s.coins +
       '</span><button class="p-x" data-close>×</button></div><div class="p-list">' + items + '</div>';
+  }
+
+  function stockHtml(id) {
+    const count = G.stockOf(id);
+    const price = G.priceOf(G.itemInfo(id));
+    const daily = G.isDaily(id);
+    const wanted = G.state.orders.reduce(function (sum, o) { return sum + (o.item === id ? o.need - o.have : 0); }, 0);
+    return '<div class="item' + (daily ? ' hot' : '') + '">' +
+      '<div class="i-icon">' + ico(id) + '</div>' +
+      '<div class="i-text"><div class="i-name">' + t('crop.' + id) + ' ×' + count + '</div>' +
+      '<div class="i-desc">' + ico('coin', 'tiny') + price +
+      (daily ? ' · ' + t('daily.tip', { pct: Math.round((G.dailyBonus() - 1) * 100) }) : '') +
+      (wanted ? '<br>' + t('barn.forOrders', { n: wanted }) : '') + '</div></div>' +
+      '<div class="i-act sell"><button class="btn green" data-sell="' + id + '">' + t('barn.all') + ' ' +
+      ico('coin', 'tiny') + price * count + '</button>' +
+      '<button class="btn" data-sell="' + id + '" data-n="1">×1</button></div></div>';
+  }
+
+  function barnHtml() {
+    const s = G.state;
+    const goods = C.crops.map(function (c) { return c.id; }).concat(Object.keys(C.products)).filter(G.stockOf);
+    const sellAll = goods.length ? '<button class="btn green" data-sellall>' + t('barn.sellAll') + ' ' +
+      ico('coin', 'tiny') + G.stockValue() + '</button>' : '';
+    return '<div class="p-head"><span>' + t('barn') + ' ' + G.stockTotal() + '/' + G.barnCapacity() + '</span>' +
+      '<span class="p-coins">' + ico('coin') + s.coins + '</span><button class="p-x" data-close>×</button></div>' +
+      '<div class="p-list"><div class="barn-facts"><span>' + t(goods.length ? 'barn.note' : 'barn.empty') + '</span>' + sellAll + '</div>' +
+      goods.map(stockHtml).join('') + '</div>';
   }
 
   function relicHtml(relic) {
@@ -256,7 +293,7 @@
     const list = el.panel.querySelector('.p-list');
     const scroll = list ? list.scrollTop : 0;
     const before = cache.panel;
-    const html = { shop: shopHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml };
+    const html = { shop: shopHtml, barn: barnHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml };
     setHtml('panel', el.panel, html[modalKind]());
     if (before !== cache.panel) {
       const fresh = el.panel.querySelector('.p-list');
@@ -292,6 +329,14 @@
     if (target.dataset.buy) {
       G.buy(target.dataset.buy);
       cache.hotbar = null;
+      return renderModal();
+    }
+    if (target.dataset.sell) {
+      G.sell(target.dataset.sell, Number(target.dataset.n) || Infinity);
+      return renderModal();
+    }
+    if (target.dataset.sellall !== undefined) {
+      G.sellAll();
       return renderModal();
     }
     if (target.dataset.lang) {
@@ -351,6 +396,7 @@
     const s = G.state;
     if (!p) return '';
     if (p.type === 'well') return t('tip.well');
+    if (p.type === 'barn') return t('tip.barn', { n: G.stockTotal(), max: G.barnCapacity() });
     if (p.type === 'egg') return t('tip.egg');
     if (p.type === 'house') return t('tip.house');
     if (p.type === 'firefly') return t('tip.firefly');
@@ -427,6 +473,9 @@
     }
     $('shop-badge').classList.toggle('hidden', !G.canBuyAny());
     setText($('relics-count'), s.relics.length + '/' + C.relics.length);
+    $('btn-barn').classList.toggle('hidden', !s.up.barn);
+    $('btn-barn').classList.toggle('full', G.stockTotal() >= G.barnCapacity());
+    setText($('barn-count'), G.stockTotal() + '/' + G.barnCapacity());
   }
 
   function refreshHint() {
@@ -457,6 +506,8 @@
     refreshTimer = 0;
     U.refresh();
   };
+
+  U.open = openModal;
 
   U.float = function (x, y, text, kind) {
     const node = document.createElement('div');
