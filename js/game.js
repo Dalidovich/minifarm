@@ -35,6 +35,13 @@
     return { sound: true, music: true, lang: null };
   }
 
+  function freshStats() {
+    return {
+      earned: 0, spent: 0, played: 0, items: {}, tilled: 0, planted: 0, watered: 0, golden: 0, pollinated: 0,
+      orders: 0, fireflies: 0, gifts: 0, pets: 0, hats: 0
+    };
+  }
+
   function freshState() {
     const plots = [];
     for (let i = 0; i < C.field.cols * C.field.rows; i++) plots.push({ kind: 'grass', crop: null, growth: 0, wet: 0 });
@@ -61,6 +68,7 @@
       catGiftIn: C.catGift.every[0],
       relics: [],
       pond: { throws: 0, dry: 0, find: null },
+      stats: freshStats(),
       tut: 0,
       tutTimer: 0,
       completed: false,
@@ -150,8 +158,23 @@
     MF.audio.play('error');
   }
 
-  function earn(amount, x, y) {
+  function gain(amount) {
     G.state.coins += amount;
+    G.state.stats.earned += amount;
+  }
+
+  function spend(amount) {
+    G.state.coins -= amount;
+    G.state.stats.spent += amount;
+  }
+
+  function countItem(id, count) {
+    const items = G.state.stats.items;
+    items[id] = (items[id] || 0) + count;
+  }
+
+  function earn(amount, x, y) {
+    gain(amount);
     MF.ui.float(x, y, '+' + amount, 'coin');
   }
 
@@ -211,7 +234,8 @@
       if (o.item !== item) return;
       o.have += count;
       if (o.have >= o.need) {
-        s.coins += o.coins;
+        gain(o.coins);
+        s.stats.orders++;
         addXp(o.xp);
         MF.ui.toast(MF.t('toast.order') + ' +' + o.coins, 'coin');
         MF.audio.play('order');
@@ -298,13 +322,15 @@
       const pos = plotPos(i);
       if (p.action === 'till') {
         plot.kind = 'soil';
+        s.stats.tilled++;
         MF.render.burst(pos.x + 8, pos.y + 10, ['#9a6b3f', '#b98654', '#7dbd57'], 6);
       } else if (p.action === 'plant') {
         const crop = cropById[s.selected];
         const cost = seedCost(crop);
         if (s.coins < cost) { failed = 'msg.noCoins'; break; }
-        s.coins -= cost;
+        spend(cost);
         spent += cost;
+        s.stats.planted++;
         plot.kind = 'crop';
         plot.crop = crop.id;
         plot.growth = 0;
@@ -312,6 +338,7 @@
       } else if (p.action === 'water') {
         if (s.water <= 0) break;
         s.water--;
+        s.stats.watered++;
         plot.wet = wetDuration();
         MF.render.burst(pos.x + 8, pos.y + 6, ['#8fd3f4', '#5bb4e5', '#c9ecfb'], 7);
       } else if (p.action === 'harvest') {
@@ -325,6 +352,9 @@
         plot.growth = 0;
         plot.pollen = false;
         progressOrders(crop.id, count);
+        countItem(crop.id, count);
+        if (golden) s.stats.golden++;
+        if (count > 1) s.stats.pollinated++;
         if (golden) {
           lucky = true;
           MF.render.burst(pos.x + 8, pos.y + 6, ['#f7d04a', '#fff7e6', '#d6a021'], 18);
@@ -379,6 +409,7 @@
     earn(priceOf(C.products.egg), egg.x, egg.y - 8);
     addXp(C.products.egg.xp);
     progressOrders('egg', 1);
+    countItem('egg', 1);
     MF.render.burst(egg.x, egg.y - 3, ['#fff7e6', '#f7d04a'], 5);
     MF.audio.play('egg');
   }
@@ -393,6 +424,7 @@
     earn(priceOf(C.products.apple) * count, spot[0], spot[1] - 40);
     addXp(C.products.apple.xp * count);
     progressOrders('apple', count);
+    countItem('apple', count);
     MF.render.burst(spot[0], spot[1] - 24, ['#d9483b', '#a4de6a', '#fff7e6'], 10);
     MF.audio.play('harvest');
     MF.audio.play('coin');
@@ -400,6 +432,7 @@
 
   function catchFirefly(index) {
     const fly = G.fireflies.splice(index, 1)[0];
+    G.state.stats.fireflies++;
     earn(randInt(C.fireflies.coins[0], C.fireflies.coins[1]) * G.state.level, fly.x, fly.y - 6);
     MF.render.burst(fly.x, fly.y, ['#eaff8a', '#fff7e6', '#f7d04a'], 8);
     MF.audio.play('coin');
@@ -420,6 +453,7 @@
     const gift = s.gift;
     const spot = C.catGift.spot;
     s.gift = null;
+    s.stats.gifts++;
     if (gift.kind === 'crop') {
       earn(priceOf(cropById[gift.crop]), spot.x, spot.y - 12);
       progressOrders(gift.crop, 1);
@@ -431,6 +465,7 @@
   function petCat() {
     const s = G.state;
     const cat = G.cat;
+    s.stats.pets++;
     if (!cat.carrying) cat.pause = Math.max(cat.pause, 1.5);
     MF.render.hearts(cat.x, cat.y - 10, 3);
     MF.ui.float(cat.x, cat.y - 12, MF.t('msg.purr'), 'info');
@@ -472,7 +507,7 @@
     const cost = throwCost();
     const diver = G.ducks[G.ducks.length - 1];
     if (s.coins < cost) return warn('msg.noCoins', f.x, f.y - 20);
-    s.coins -= cost;
+    spend(cost);
     MF.ui.float(f.x, f.y - 20, '-' + cost, 'spend');
     s.pond.find = makeFind(cost);
     s.pond.dry = s.pond.find.kind === 'relic' ? 0 : s.pond.dry + 1;
@@ -548,6 +583,7 @@
 
   function returnHat() {
     G.state.hat = null;
+    G.state.stats.hats++;
     G.hatFlight = 0;
     MF.render.burst(C.scarecrow.x + 9, C.scarecrow.y + 4, ['#c29a3a', '#f7d04a', '#fff7e6'], 8);
     MF.audio.play('plant');
@@ -1015,7 +1051,7 @@
       MF.audio.play('error');
       return false;
     }
-    s.coins -= G.nextLevelOf(id).cost;
+    spend(G.nextLevelOf(id).cost);
     s.up[id]++;
     if (id === 'can') s.water = canCapacity();
     if (id === 'trees') s.trees.push({ apples: 0, t: C.appleInterval });
@@ -1394,6 +1430,7 @@
     updateHat(dt);
     updatePond(dt);
     if (!quiet) {
+      s.stats.played += dt;
       updateFarmer(dt);
       G.workers.forEach(function (w) { updateWorker(w, dt); });
     }
@@ -1429,6 +1466,7 @@
         s = Object.assign(base, data);
         s.up = Object.assign(freshState().up, data.up);
         s.settings = Object.assign(defaultSettings(), data.settings);
+        s.stats = Object.assign(freshStats(), data.stats);
         away = Math.max(0, (Date.now() - data.savedAt) / 1000);
       }
     } catch (e) {

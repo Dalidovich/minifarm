@@ -60,11 +60,15 @@
       '<div class="btns">' +
         '<button class="btn green" id="btn-shop">' + t('shop') + '<b id="shop-badge">!</b></button>' +
         '<button class="btn" id="btn-relics">' + t('relics') + ' <span id="relics-count"></span></button>' +
-        '<button class="btn" id="btn-settings">' + t('settings') + '</button>' +
+        '<div class="btn-pair">' +
+          '<button class="btn" id="btn-stats">' + t('stats') + '</button>' +
+          '<button class="btn" id="btn-settings">' + t('settings') + '</button>' +
+        '</div>' +
       '</div>';
     delete cache.orders;
     $('btn-shop').addEventListener('click', function () { openModal('shop'); });
     $('btn-relics').addEventListener('click', function () { openModal('relics'); });
+    $('btn-stats').addEventListener('click', function () { openModal('stats'); });
     $('btn-settings').addEventListener('click', function () { openModal('settings'); });
     $('orders').addEventListener('click', function (e) {
       const btn = e.target.closest('[data-skip]');
@@ -165,6 +169,65 @@
       (s.up.ducks ? facts.join('<br>') : t('relics.locked')) + '</div>' + sets + '</div>';
   }
 
+  function statHtml(sprite, key, value) {
+    return '<div class="stat">' + img(sprite) + '<span>' + t(key) + '</span><b>' + value + '</b></div>';
+  }
+
+  function statGroupHtml(key, total, rows) {
+    return '<div class="set-head"><div class="set-name"><span>' + t(key) + '</span><span>' + total + '</span></div></div>' + rows.join('');
+  }
+
+  function playedText(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    return t('stats.time', { h: Math.floor(minutes / 60), m: minutes % 60 });
+  }
+
+  function statsHtml() {
+    const s = G.state;
+    const st = s.stats;
+    const bought = C.upgrades.reduce(function (sum, u) { return sum + s.up[u.id]; }, 0);
+    const levels = C.upgrades.reduce(function (sum, u) { return sum + u.levels.length; }, 0);
+    const farm = [
+      statHtml(S.icons.sun, 'stats.days', Math.floor(s.time / C.dayLength) + 1),
+      statHtml(S.icons.hammock, 'stats.played', playedText(st.played)),
+      statHtml(S.icons.coin, 'stats.earned', st.earned),
+      statHtml(S.icons.bag, 'stats.spent', st.spent),
+      statHtml(S.icons.market, 'stats.orders', st.orders),
+      statHtml(S.icons.house, 'stats.upgrades', bought + '/' + levels)
+    ];
+    const goods = C.crops.map(function (c) { return c.id; }).concat(Object.keys(C.products)).filter(function (id) {
+      const crop = G.cropById[id];
+      return st.items[id] || (crop ? crop.level <= s.level : s.up[id === 'egg' ? 'coop' : 'trees'] > 0);
+    });
+    const harvest = goods.map(function (id) { return statHtml(S.icons[id], 'crop.' + id, st.items[id] || 0); });
+    const total = goods.reduce(function (sum, id) { return sum + (st.items[id] || 0); }, 0);
+    const field = [
+      statHtml(S.icons.hoe, 'stats.tilled', st.tilled),
+      statHtml(S.icons.seeds, 'stats.planted', st.planted),
+      statHtml(S.icons.can, 'stats.watered', st.watered)
+    ];
+    if (s.up.clover || st.golden) field.push(statHtml(S.icons.clover, 'stats.golden', st.golden));
+    if (s.up.flowers || st.pollinated) field.push(statHtml(S.icons.flower, 'stats.pollinated', st.pollinated));
+    const fun = [];
+    if (s.up.lanterns) fun.push(statHtml(S.icons.lantern, 'stats.fireflies', st.fireflies));
+    if (s.up.scarecrow) fun.push(statHtml(S.shopIcons.scarecrow, 'stats.hats', st.hats));
+    if (s.up.cat) {
+      fun.push(statHtml(S.shopIcons.cat, 'stats.pets', st.pets));
+      fun.push(statHtml(S.icons.gem, 'stats.gifts', st.gifts));
+    }
+    if (s.up.ducks) {
+      fun.push(statHtml(S.shopIcons.ducks, 'stats.tosses', s.pond.throws));
+      fun.push(statHtml(S.icons.star, 'stats.relics', s.relics.length + '/' + C.relics.length));
+    }
+    return '<div class="p-head"><span>' + t('stats') + '</span><button class="p-x" data-close>×</button></div>' +
+      '<div class="p-list">' +
+      statGroupHtml('stats.farm', t('level', { n: s.level }), farm) +
+      statGroupHtml('stats.harvest', total, harvest) +
+      statGroupHtml('stats.field', '', field) +
+      (fun.length ? statGroupHtml('stats.fun', '', fun) : '') +
+      '</div>';
+  }
+
   function toggleHtml(key, on, action) {
     return '<div class="s-row"><span>' + t(key) + '</span><button class="btn' + (on ? ' green' : '') + '" data-set="' + action + '">' +
       t(on ? 'set.on' : 'set.off') + '</button></div>';
@@ -190,7 +253,8 @@
     const list = el.panel.querySelector('.p-list');
     const scroll = list ? list.scrollTop : 0;
     const before = cache.panel;
-    setHtml('panel', el.panel, modalKind === 'shop' ? shopHtml() : modalKind === 'relics' ? relicsHtml() : settingsHtml());
+    const html = { shop: shopHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml };
+    setHtml('panel', el.panel, html[modalKind]());
     if (before !== cache.panel) {
       const fresh = el.panel.querySelector('.p-list');
       if (fresh) fresh.scrollTop = scroll;

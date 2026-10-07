@@ -265,6 +265,18 @@ button {
   font-size: 16px;
 }
 
+.btn-pair {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-pair .btn {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 2px;
+  font-size: 13px;
+}
+
 #shop-badge {
   position: absolute;
   top: -7px;
@@ -732,6 +744,23 @@ img.sil {
 .set-head.done .set-perk {
   opacity: 1;
   color: #fdf0c0;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #fff3d1;
+  border: 2px solid var(--ink);
+  font-weight: 600;
+}
+
+.stat b {
+  margin-left: auto;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .item.missing {
