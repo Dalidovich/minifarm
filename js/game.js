@@ -121,6 +121,7 @@
     return time - G.state.time;
   }
   function isDaily(id) { return !!G.state.daily && G.state.daily.crop === id; }
+  function isNextDaily(id) { return !!G.state.up.insider && !!G.state.daily && G.state.daily.next === id; }
   function dailyBonus() { return C.dailyBonus[G.state.up.sign] + perk('daily'); }
   function offlineCap() { return C.offlineCap[G.state.up.hammock] * (1 + perk('offline')); }
   function priceOf(item) {
@@ -1330,17 +1331,33 @@
     }
   }
 
+  function pickDaily(last) {
+    const s = G.state;
+    const open = C.crops.filter(function (c) { return c.level <= s.level; }).slice(-C.dailyPool);
+    if (open.length < 2) return null;
+    return pick(open.filter(function (c) { return c.id !== last; })).id;
+  }
+
   function updateDaily(quiet) {
     const s = G.state;
     const day = dayIndex();
     if (s.daily && s.daily.day === day) return;
-    const open = C.crops.filter(function (c) { return c.level <= s.level; }).slice(-C.dailyPool);
-    if (open.length < 2) return;
-    const last = s.daily ? s.daily.crop : null;
-    const crop = pick(open.filter(function (c) { return c.id !== last; }));
-    s.daily = { day: day, crop: crop.id };
+    const crop = (s.daily && s.daily.next) || pickDaily(s.daily ? s.daily.crop : null);
+    if (!crop) return;
+    s.daily = { day: day, crop: crop };
     if (quiet) return;
-    MF.ui.toast(MF.t('toast.daily', { name: MF.t('crop.' + crop.id), pct: Math.round((dailyBonus() - 1) * 100) }), crop.id);
+    MF.ui.toast(MF.t('toast.daily', { name: MF.t('crop.' + crop), pct: Math.round((dailyBonus() - 1) * 100) }), crop);
+  }
+
+  function updateInsider(quiet) {
+    const s = G.state;
+    if (!s.up.insider || !s.daily || s.daily.next) return;
+    if ((s.time % C.dayLength) / C.dayLength < C.insiderPhase) return;
+    const next = pickDaily(s.daily.crop);
+    if (!next) return;
+    s.daily.next = next;
+    if (quiet) return;
+    MF.ui.toast(MF.t('toast.insider', { name: MF.t('crop.' + next) }), 'insider');
   }
 
   function updatePlots(dt, quiet) {
@@ -1424,6 +1441,7 @@
     const quiet = dt > 5;
     s.time += dt;
     updateDaily(quiet);
+    updateInsider(quiet);
     if (!quiet) updateWeather(dt);
     updatePlots(dt, quiet);
     updateAnimals(dt, quiet);
@@ -1514,6 +1532,7 @@
   G.wetDuration = wetDuration;
   G.priceOf = priceOf;
   G.isDaily = isDaily;
+  G.isNextDaily = isNextDaily;
   G.dailyBonus = dailyBonus;
   G.offlineCap = offlineCap;
   G.seedCost = seedCost;

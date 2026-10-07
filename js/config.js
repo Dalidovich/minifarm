@@ -53,6 +53,7 @@ MF.config = {
   orderSkipDelay: 30,
   dailyBonus: [1.5, 1.75, 2],
   dailyPool: 4,
+  insiderPhase: 0.75,
   night: [0.67, 0.96],
   nightGrow: 1.25,
   bees: {
@@ -123,6 +124,7 @@ MF.config = {
     { id: 'seeds', levels: [{ cost: 150, level: 2 }, { cost: 900, level: 4 }, { cost: 4000, level: 6 }] },
     { id: 'market', levels: [{ cost: 350, level: 3 }, { cost: 1800, level: 5 }, { cost: 7000, level: 7 }] },
     { id: 'sign', levels: [{ cost: 500, level: 3 }, { cost: 3500, level: 6 }] },
+    { id: 'insider', levels: [{ cost: 800, level: 4 }] },
     { id: 'coop', levels: [{ cost: 300, level: 3 }, { cost: 400, level: 3 }, { cost: 700, level: 4 }, { cost: 1200, level: 5 }] },
     { id: 'feed', requires: 'coop', levels: [{ cost: 500, level: 4 }, { cost: 2500, level: 6 }] },
     { id: 'henhand', requires: 'coop', levels: [{ cost: 1500, level: 5 }] },
