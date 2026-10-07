@@ -38,6 +38,8 @@ MF.config = {
   maxApples: 3,
   orderDelay: 15,
   orderSkipDelay: 30,
+  dailyBonus: 1.5,
+  dailyPool: 4,
   crops: [
     { id: 'radish', level: 1, cost: 2, sell: 6, time: 20, xp: 1 },
     { id: 'carrot', level: 2, cost: 5, sell: 12, time: 40, xp: 2 },

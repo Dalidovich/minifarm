@@ -50,6 +50,7 @@
       orders: [{ wait: 45 }, { wait: 150 }, { wait: 300 }],
       rain: 0,
       rainIn: 420,
+      daily: null,
       tut: 0,
       tutTimer: 0,
       completed: false,
@@ -62,7 +63,8 @@
   function wetDuration() { return C.wetDuration[G.state.up.can]; }
   function canCapacity() { return C.canCapacity[G.state.up.can]; }
   function growSpeed() { return 1 + C.fertBonus * G.state.up.fert; }
-  function priceOf(item) { return Math.round(item.sell * C.houseBonus[G.state.up.house]); }
+  function isDaily(id) { return !!G.state.daily && G.state.daily.crop === id; }
+  function priceOf(item) { return Math.round(item.sell * C.houseBonus[G.state.up.house] * (isDaily(item.id) ? C.dailyBonus : 1)); }
   function itemInfo(id) { return cropById[id] || C.products[id]; }
 
   function isUnlocked(col, row) {
@@ -771,6 +773,19 @@
     }
   }
 
+  function updateDaily(quiet) {
+    const s = G.state;
+    const day = Math.floor(s.time / C.dayLength);
+    if (s.daily && s.daily.day === day) return;
+    const open = C.crops.filter(function (c) { return c.level <= s.level; }).slice(-C.dailyPool);
+    if (open.length < 2) return;
+    const last = s.daily ? s.daily.crop : null;
+    const crop = pick(open.filter(function (c) { return c.id !== last; }));
+    s.daily = { day: day, crop: crop.id };
+    if (quiet) return;
+    MF.ui.toast(MF.t('toast.daily', { name: MF.t('crop.' + crop.id), pct: Math.round((C.dailyBonus - 1) * 100) }), crop.id);
+  }
+
   function updatePlots(dt, quiet) {
     const s = G.state;
     const size = fieldSize();
@@ -844,6 +859,7 @@
     const s = G.state;
     const quiet = dt > 5;
     s.time += dt;
+    updateDaily(quiet);
     if (!quiet) updateWeather(dt);
     updatePlots(dt, quiet);
     updateAnimals(dt, quiet);
@@ -912,6 +928,7 @@
   G.canCapacity = canCapacity;
   G.wetDuration = wetDuration;
   G.priceOf = priceOf;
+  G.isDaily = isDaily;
   G.seedCost = seedCost;
   G.itemInfo = itemInfo;
 })();

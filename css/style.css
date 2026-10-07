@@ -323,6 +323,26 @@ button {
   color: #b5452f;
 }
 
+.slot.daily {
+  background: #fdf0c0;
+}
+
+.slot .mark {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  animation: bounce 0.8s steps(2) infinite;
+}
+
+.slot .mark img {
+  display: block;
+  margin: 0;
+}
+
+.slot .tip .good {
+  color: #f7d04a;
+}
+
 .slot.locked {
   background: #b89a66;
   box-shadow: inset 2px 2px 0 #c9ad7a, inset -2px -2px 0 #9c8052;

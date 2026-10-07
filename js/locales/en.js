@@ -12,6 +12,7 @@ MF.locales.en = {
   'lvlReq': 'Level {n}',
   'lvlShort': 'Lv {n}',
   'sellsFor': 'sells for',
+  'daily.tip': 'Crop of the day: +{pct}%',
 
   'crop.radish': 'Radish',
   'crop.carrot': 'Carrot',
@@ -44,6 +45,7 @@ MF.locales.en = {
   'toast.newShop': 'New goods in the shop',
   'toast.rain': 'It is raining. The beds water themselves.',
   'toast.order': 'Order complete!',
+  'toast.daily': 'Crop of the day: {name}. It sells for {pct}% more.',
   'toast.welcome': 'Welcome back! The farm kept going without you.',
   'toast.done': 'The farm is complete. It is beautiful. Stay as long as you like.',
 

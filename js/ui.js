@@ -81,10 +81,13 @@
           '<span class="cost">' + t('lvlShort', { n: crop.level }) + '</span></div>';
       }
       const cost = G.seedCost(crop);
-      const cls = 'slot' + (s.selected === crop.id ? ' sel' : '') + (s.coins < cost ? ' poor' : '');
+      const daily = G.isDaily(crop.id);
+      const cls = 'slot' + (s.selected === crop.id ? ' sel' : '') + (s.coins < cost ? ' poor' : '') + (daily ? ' daily' : '');
       return '<button class="' + cls + '" data-crop="' + crop.id + '">' + ico(crop.id) +
         '<span class="cost">' + ico('coin', 'tiny') + cost + '</span>' +
-        '<span class="tip">' + name + '<br>' + t('sellsFor') + ' ' + ico('coin', 'tiny') + G.priceOf(crop) + '</span></button>';
+        (daily ? '<span class="mark">' + ico('star', 'tiny') + '</span>' : '') +
+        '<span class="tip">' + name + '<br>' + t('sellsFor') + ' ' + ico('coin', 'tiny') + G.priceOf(crop) +
+        (daily ? '<br><span class="good">' + t('daily.tip', { pct: Math.round((C.dailyBonus - 1) * 100) }) + '</span>' : '') + '</span></button>';
     }).join('');
   }
 
