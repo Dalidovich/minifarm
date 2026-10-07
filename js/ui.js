@@ -1,0 +1,392 @@
+(function () {
+  const C = MF.config;
+  const S = MF.sprites;
+  const G = MF.game;
+  const t = MF.t;
+  const STAGE_W = 960;
+  const STAGE_H = 540;
+  const WORLD_SCALE = 2;
+  const SCALE_STEP = 0.25;
+  const REFRESH = 0.1;
+
+  const U = (MF.ui = {});
+  const el = {};
+  const mouse = { x: 0, y: 0, inside: false, down: false, clientX: 0, clientY: 0 };
+  let stroke = new Set();
+  let refreshTimer = 0;
+  let modalKind = null;
+  let resetArmed = false;
+  const cache = {};
+
+  function $(id) { return document.getElementById(id); }
+
+  function img(sprite, cls) {
+    return '<img class="px ' + (cls || '') + '" src="' + S.url(sprite) + '" alt="">';
+  }
+
+  function ico(name, cls) { return img(S.icons[name], cls); }
+
+  function setText(node, value) {
+    const text = String(value);
+    if (node.textContent !== text) node.textContent = text;
+  }
+
+  function setHtml(key, node, html) {
+    if (cache[key] === html) return;
+    cache[key] = html;
+    node.innerHTML = html;
+  }
+
+  function layout() {
+    const fit = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+    const scale = Math.max(SCALE_STEP * 2, Math.floor(fit / SCALE_STEP) * SCALE_STEP);
+    el.stage.style.transform = 'scale(' + scale + ')';
+    el.stage.style.left = Math.max(0, Math.round((window.innerWidth - STAGE_W * scale) / 2)) + 'px';
+    el.stage.style.top = Math.max(0, Math.round((window.innerHeight - STAGE_H * scale) / 2)) + 'px';
+  }
+
+  function buildSide() {
+    el.side.innerHTML =
+      '<div class="logo">' + t('title') + '</div>' +
+      '<div class="card stats">' +
+        '<div class="row big">' + ico('coin') + '<span id="st-coins"></span></div>' +
+        '<div class="row">' + ico('star') + '<span id="st-level"></span></div>' +
+        '<div class="bar"><i id="st-xp"></i></div>' +
+        '<div class="row">' + ico('drop') + '<span id="st-water"></span></div>' +
+        '<div class="bar blue"><i id="st-waterbar"></i></div>' +
+        '<div class="row"><img class="px" id="st-sky" alt=""><span id="st-day"></span><span id="st-clock"></span></div>' +
+      '</div>' +
+      '<div class="card orders"><div class="head">' + t('orders') + '</div><div id="orders"></div></div>' +
+      '<div class="btns">' +
+        '<button class="btn green" id="btn-shop">' + t('shop') + '<b id="shop-badge">!</b></button>' +
+        '<button class="btn" id="btn-settings">' + t('settings') + '</button>' +
+      '</div>';
+    delete cache.orders;
+    $('btn-shop').addEventListener('click', function () { openModal('shop'); });
+    $('btn-settings').addEventListener('click', function () { openModal('settings'); });
+    $('orders').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-skip]');
+      if (!btn) return;
+      G.skipOrder(Number(btn.dataset.skip));
+      MF.audio.play('click');
+    });
+  }
+
+  function hotbarHtml() {
+    const s = G.state;
+    return C.crops.map(function (crop) {
+      const name = t('crop.' + crop.id);
+      if (crop.level > s.level) {
+        return '<div class="slot locked">' + ico(crop.id, 'sil') +
+          '<span class="cost">' + t('lvlShort', { n: crop.level }) + '</span></div>';
+      }
+      const cost = G.seedCost(crop);
+      const cls = 'slot' + (s.selected === crop.id ? ' sel' : '') + (s.coins < cost ? ' poor' : '');
+      return '<button class="' + cls + '" data-crop="' + crop.id + '">' + ico(crop.id) +
+        '<span class="cost">' + ico('coin', 'tiny') + cost + '</span>' +
+        '<span class="tip">' + name + '<br>' + t('sellsFor') + ' ' + ico('coin', 'tiny') + G.priceOf(crop) + '</span></button>';
+    }).join('');
+  }
+
+  function ordersHtml() {
+    return G.state.orders.map(function (o, i) {
+      if (!o.item) return '<div class="order wait">' + t('orderWait') + '</div>';
+      const pct = Math.min(100, Math.round((o.have / o.need) * 100));
+      return '<div class="order">' + ico(o.item) +
+        '<div class="o-main"><div class="o-top"><span>' + o.have + '/' + o.need + '</span>' +
+        '<span class="o-rew">' + ico('coin', 'tiny') + o.coins + '</span></div>' +
+        '<div class="bar"><i style="width:' + pct + '%"></i></div></div>' +
+        '<button class="o-x" data-skip="' + i + '" aria-label="' + t('orderSkip') + '">×</button></div>';
+    }).join('');
+  }
+
+  function shopHtml() {
+    const s = G.state;
+    const items = C.upgrades.map(function (u) {
+      const lvl = s.up[u.id];
+      const next = u.levels[lvl];
+      const nameKey = lvl > 0 && MF.i18n.has('up.' + u.id + '.name2') ? 'up.' + u.id + '.name2' : 'up.' + u.id + '.name';
+      let pips = '';
+      if (u.levels.length > 1) {
+        for (let i = 0; i < u.levels.length; i++) pips += '<i class="' + (i < lvl ? 'on' : '') + '"></i>';
+      }
+      let action;
+      if (!next) action = '<div class="tag done">' + t('shop.max') + '</div>';
+      else if (s.level < next.level) action = '<div class="tag lock">' + t('lvlReq', { n: next.level }) + '</div>';
+      else {
+        action = '<button class="btn green buy' + (s.coins < next.cost ? ' poor' : '') + '" data-buy="' + u.id + '">' +
+          ico('coin', 'tiny') + next.cost + '</button>';
+      }
+      return '<div class="item' + (!next ? ' maxed' : '') + '">' +
+        '<div class="i-icon">' + img(S.shopIcons[u.id]) + '</div>' +
+        '<div class="i-text"><div class="i-name">' + t(nameKey) + '</div><div class="pips">' + pips + '</div>' +
+        '<div class="i-desc">' + t('up.' + u.id + '.desc') + '</div></div>' +
+        '<div class="i-act">' + action + '</div></div>';
+    }).join('');
+    return '<div class="p-head"><span>' + t('shop') + '</span><span class="p-coins">' + ico('coin') + s.coins +
+      '</span><button class="p-x" data-close>×</button></div><div class="p-list">' + items + '</div>';
+  }
+
+  function toggleHtml(key, on, action) {
+    return '<div class="s-row"><span>' + t(key) + '</span><button class="btn' + (on ? ' green' : '') + '" data-set="' + action + '">' +
+      t(on ? 'set.on' : 'set.off') + '</button></div>';
+  }
+
+  function settingsHtml() {
+    const st = G.state.settings;
+    const langs = Object.keys(MF.locales).map(function (code) {
+      return '<button class="btn' + (MF.i18n.lang === code ? ' green' : '') + '" data-lang="' + code + '">' + MF.locales[code].langName + '</button>';
+    }).join('');
+    return '<div class="p-head"><span>' + t('settings') + '</span><button class="p-x" data-close>×</button></div>' +
+      '<div class="p-list settings">' +
+      toggleHtml('set.sound', st.sound, 'sound') +
+      toggleHtml('set.music', st.music, 'music') +
+      '<div class="s-row"><span>' + t('set.lang') + '</span><span class="s-group">' + langs + '</span></div>' +
+      '<div class="s-note">' + t('set.resetNote') + '</div>' +
+      '<div class="s-row"><span></span><button class="btn red" data-set="reset">' + t(resetArmed ? 'set.resetConfirm' : 'set.reset') + '</button></div>' +
+      '</div>';
+  }
+
+  function renderModal() {
+    if (!modalKind) return;
+    const list = el.panel.querySelector('.p-list');
+    const scroll = list ? list.scrollTop : 0;
+    const before = cache.panel;
+    setHtml('panel', el.panel, modalKind === 'shop' ? shopHtml() : settingsHtml());
+    if (before !== cache.panel) {
+      const fresh = el.panel.querySelector('.p-list');
+      if (fresh) fresh.scrollTop = scroll;
+    }
+  }
+
+  function openModal(kind) {
+    modalKind = kind;
+    resetArmed = false;
+    delete cache.panel;
+    el.modal.classList.remove('hidden');
+    el.tooltip.classList.add('hidden');
+    MF.render.hover = null;
+    if (kind === 'shop') G.shopOpened();
+    MF.audio.unlock();
+    MF.audio.play('click');
+    renderModal();
+  }
+
+  function closeModal() {
+    modalKind = null;
+    el.modal.classList.add('hidden');
+  }
+
+  function onPanelClick(e) {
+    const target = e.target.closest('button');
+    if (!target) return;
+    if (target.dataset.close !== undefined) {
+      MF.audio.play('click');
+      return closeModal();
+    }
+    if (target.dataset.buy) {
+      G.buy(target.dataset.buy);
+      cache.hotbar = null;
+      return renderModal();
+    }
+    if (target.dataset.lang) {
+      G.state.settings.lang = target.dataset.lang;
+      MF.i18n.set(target.dataset.lang);
+      G.save();
+      U.rebuild();
+      return renderModal();
+    }
+    const action = target.dataset.set;
+    const st = G.state.settings;
+    if (action === 'sound') st.sound = !st.sound;
+    if (action === 'music') {
+      st.music = !st.music;
+      MF.audio.syncMusic();
+    }
+    if (action === 'reset') {
+      if (!resetArmed) resetArmed = true;
+      else {
+        G.reset();
+        MF.render.rebuild();
+        closeModal();
+        U.rebuild();
+        return;
+      }
+    }
+    MF.audio.play('click');
+    G.save();
+    renderModal();
+  }
+
+  function trackMouse(e) {
+    const box = el.canvas.getBoundingClientRect();
+    mouse.clientX = e.clientX;
+    mouse.clientY = e.clientY;
+    mouse.x = ((e.clientX - box.left) / box.width) * C.viewW;
+    mouse.y = ((e.clientY - box.top) / box.height) * C.viewH;
+    mouse.inside = true;
+  }
+
+  function tooltipHtml(p) {
+    const s = G.state;
+    if (!p) return '';
+    if (p.type === 'well') return t('tip.well');
+    if (p.type === 'egg') return t('tip.egg');
+    if (p.type === 'house') return t('tip.house');
+    if (p.type === 'tree') return t(s.trees[p.index].apples ? 'tip.tree' : 'tip.treeEmpty');
+    const plot = s.plots[p.index];
+    if (p.action === 'till') return t('act.till');
+    if (p.action === 'plant') {
+      const crop = G.cropById[s.selected];
+      const cost = G.seedCost(crop) * p.targets.length;
+      return t('act.plant', { name: t('crop.' + crop.id) }) + ' <span class="' + (s.coins < G.seedCost(crop) ? 'bad' : '') + '">' +
+        ico('coin', 'tiny') + cost + '</span>';
+    }
+    const name = t('crop.' + plot.crop);
+    if (p.action === 'harvest') return t('act.harvest', { name: name });
+    const pct = Math.floor((plot.growth / G.cropById[plot.crop].time) * 100);
+    const info = t('info.growing', { name: name, pct: pct });
+    if (p.action === 'water') return t('act.water') + '<br><small>' + info + '</small>';
+    return info;
+  }
+
+  function refreshHover() {
+    if (!mouse.inside || modalKind) {
+      MF.render.hover = null;
+      el.tooltip.classList.add('hidden');
+      el.canvas.style.cursor = 'default';
+      return;
+    }
+    const p = G.probe(mouse.x, mouse.y);
+    MF.render.hover = p;
+    const html = tooltipHtml(p);
+    el.canvas.style.cursor = p && (p.type !== 'plot' || p.action) && p.type !== 'house' ? 'pointer' : 'default';
+    if (!html) {
+      el.tooltip.classList.add('hidden');
+      return;
+    }
+    setHtml('tooltip', el.tooltip, html);
+    el.tooltip.classList.remove('hidden');
+    const x = Math.min(mouse.x * WORLD_SCALE + 16, C.viewW * WORLD_SCALE - el.tooltip.offsetWidth - 6);
+    const y = Math.min(mouse.y * WORLD_SCALE + 18, C.viewH * WORLD_SCALE - el.tooltip.offsetHeight - 6);
+    el.tooltip.style.left = x + 'px';
+    el.tooltip.style.top = y + 'px';
+  }
+
+  function refreshStats() {
+    const s = G.state;
+    setText($('st-coins'), s.coins);
+    const maxed = s.level >= G.maxLevel;
+    setText($('st-level'), t(maxed ? 'levelMax' : 'level', { n: s.level }));
+    $('st-xp').style.width = (maxed ? 100 : Math.round((s.xp / C.levelXp[s.level - 1]) * 100)) + '%';
+    const cap = G.canCapacity();
+    setText($('st-water'), s.up.sprinkler ? '∞' : s.water + '/' + cap);
+    $('st-waterbar').style.width = (s.up.sprinkler ? 100 : Math.round((s.water / cap) * 100)) + '%';
+    const phase = (s.time % C.dayLength) / C.dayLength;
+    const minutes = Math.floor(((6 + phase * 24) % 24) * 6) * 10;
+    const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+    const mm = String(minutes % 60).padStart(2, '0');
+    setText($('st-day'), t('day', { n: Math.floor(s.time / C.dayLength) + 1 }));
+    setText($('st-clock'), hh + ':' + mm);
+    const sky = S.url(MF.render.darkness() > 0.5 ? S.icons.moon : S.icons.sun);
+    if (cache.sky !== sky) {
+      cache.sky = sky;
+      $('st-sky').src = sky;
+    }
+    $('shop-badge').classList.toggle('hidden', !G.canBuyAny());
+  }
+
+  function refreshHint() {
+    const key = G.hintKey();
+    el.hint.classList.toggle('hidden', !key || !!modalKind);
+    if (key) setHtml('hint', el.hint, t(key));
+  }
+
+  U.rebuild = function () {
+    Object.keys(cache).forEach(function (key) { delete cache[key]; });
+    document.title = t('title');
+    buildSide();
+    U.refresh();
+  };
+
+  U.refresh = function () {
+    refreshStats();
+    setHtml('hotbar', el.hotbar, hotbarHtml());
+    setHtml('orders', $('orders'), ordersHtml());
+    refreshHint();
+    refreshHover();
+    renderModal();
+  };
+
+  U.tick = function (dt) {
+    refreshTimer += dt;
+    if (refreshTimer < REFRESH) return;
+    refreshTimer = 0;
+    U.refresh();
+  };
+
+  U.float = function (x, y, text, kind) {
+    const node = document.createElement('div');
+    node.className = 'float ' + (kind || '');
+    node.textContent = text;
+    node.style.left = Math.max(40, Math.min(C.viewW * WORLD_SCALE - 40, x * WORLD_SCALE)) + 'px';
+    node.style.top = Math.max(24, y * WORLD_SCALE) + 'px';
+    el.floats.appendChild(node);
+    node.addEventListener('animationend', function () { node.remove(); });
+  };
+
+  U.toast = function (html, icon) {
+    const node = document.createElement('div');
+    node.className = 'toast';
+    node.innerHTML = (icon ? ico(icon) : '') + '<span>' + html + '</span>';
+    el.toasts.appendChild(node);
+    setTimeout(function () { node.classList.add('out'); }, 4200);
+    setTimeout(function () { node.remove(); }, 4800);
+  };
+
+  U.init = function () {
+    ['stage', 'side', 'hotbar', 'hint', 'tooltip', 'floats', 'toasts', 'modal', 'panel'].forEach(function (id) { el[id] = $(id); });
+    el.canvas = $('game');
+
+    el.canvas.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return;
+      MF.audio.unlock();
+      trackMouse(e);
+      mouse.down = true;
+      stroke = new Set();
+      G.act(G.probe(mouse.x, mouse.y), stroke, false);
+      refreshHover();
+    });
+    el.canvas.addEventListener('mousemove', function (e) {
+      trackMouse(e);
+      if (mouse.down) G.act(G.probe(mouse.x, mouse.y), stroke, true);
+      refreshHover();
+    });
+    el.canvas.addEventListener('mouseleave', function () {
+      mouse.inside = false;
+      refreshHover();
+    });
+    el.canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    window.addEventListener('mouseup', function () { mouse.down = false; });
+    window.addEventListener('blur', function () { mouse.down = false; });
+
+    el.hotbar.addEventListener('click', function (e) {
+      const slot = e.target.closest('[data-crop]');
+      if (!slot) return;
+      MF.audio.unlock();
+      G.selectCrop(slot.dataset.crop);
+      U.refresh();
+    });
+    el.modal.addEventListener('mousedown', function (e) {
+      if (e.target === el.modal) closeModal();
+    });
+    el.panel.addEventListener('click', onPanelClick);
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeModal();
+    });
+    window.addEventListener('resize', layout);
+
+    layout();
+    U.rebuild();
+  };
+})();

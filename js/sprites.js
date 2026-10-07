@@ -1,0 +1,828 @@
+(function () {
+  const PAL = {
+    k: '#3b2a22', w: '#fff7e6', W: '#d9cdb8',
+    g: '#4f9a3f', G: '#6dbf4b', l: '#a4de6a',
+    r: '#d9483b', R: '#a32d2d',
+    o: '#f08a2c', O: '#c4631a',
+    y: '#f7d04a', Y: '#d6a021',
+    b: '#a8703a', B: '#7d4e24', n: '#d9a066',
+    p: '#f29bb5', P: '#c0577f',
+    u: '#8a5fb5', U: '#5e3d8a',
+    c: '#5bb4e5', C: '#3f7fc4',
+    s: '#9aa5ad', S: '#6b757d'
+  };
+  const OUTLINE = '#3b2a22';
+  const LEAF_OUTLINE = '#2f5a2c';
+
+  function canvas(w, h) {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    return c;
+  }
+
+  function rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function grid(rows, opts) {
+    const o = opts || {};
+    const w = o.w || Math.max.apply(null, rows.map(function (r) { return r.length; }));
+    const h = o.h || rows.length;
+    const ox = o.ox || 0;
+    const oy = o.bottom !== undefined ? h - o.bottom - rows.length : (o.oy || 0);
+    const pal = o.pal ? Object.assign({}, PAL, o.pal) : PAL;
+    const c = canvas(w, h);
+    const g = c.getContext('2d');
+    rows.forEach(function (row, y) {
+      for (let x = 0; x < row.length; x++) {
+        const color = pal[row[x]];
+        if (color) {
+          g.fillStyle = color;
+          g.fillRect(x + ox, y + oy, 1, 1);
+        }
+      }
+    });
+    return c;
+  }
+
+  function paint(w, h, fn) {
+    const c = canvas(w, h);
+    const g = c.getContext('2d');
+    const rect = function (color, x, y, rw, rh) {
+      g.fillStyle = color;
+      g.fillRect(x, y, rw, rh);
+    };
+    fn(rect, g);
+    return c;
+  }
+
+  function disc(rect, color, cx, cy, r) {
+    for (let dy = -r; dy <= r; dy++) {
+      const half = Math.floor(Math.sqrt(r * r + r - dy * dy));
+      rect(color, cx - half, cy + dy, half * 2 + 1, 1);
+    }
+  }
+
+  function outline(src, color) {
+    const w = src.width;
+    const h = src.height;
+    const out = canvas(w, h);
+    const g = out.getContext('2d');
+    const d = src.getContext('2d').getImageData(0, 0, w, h).data;
+    const solid = function (x, y) {
+      return x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] > 0;
+    };
+    g.fillStyle = color || OUTLINE;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) {
+          g.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+    g.drawImage(src, 0, 0);
+    return out;
+  }
+
+  function flip(src) {
+    const c = canvas(src.width, src.height);
+    const g = c.getContext('2d');
+    g.translate(src.width, 0);
+    g.scale(-1, 1);
+    g.drawImage(src, 0, 0);
+    return c;
+  }
+
+  const urls = new Map();
+  function url(c) {
+    if (!urls.has(c)) urls.set(c, c.toDataURL());
+    return urls.get(c);
+  }
+
+  const ICONS = {
+    radish: [
+      '.......gG...',
+      '......gGl...',
+      '...g..Gl....',
+      '...Gg.G.....',
+      '....GGG.....',
+      '...krrrk....',
+      '..krprrrk...',
+      '..krrrrRk...',
+      '..krrrrRk...',
+      '...krrRk....',
+      '....kRk.....',
+      '.....k......'
+    ],
+    carrot: [
+      '....g..g....',
+      '.....gGg....',
+      '....gGlG....',
+      '.....GG.....',
+      '....kook....',
+      '...koooOk...',
+      '...koyoOk...',
+      '....kooOk...',
+      '....koOk....',
+      '.....kOk....',
+      '.....kOk....',
+      '......k.....'
+    ],
+    potato: [
+      '............',
+      '............',
+      '....kkkk....',
+      '..kknnnnkk..',
+      '.knnnnnnnbk.',
+      '.knnBnnnnbk.',
+      'knnnnnnBnnbk',
+      'knnnnnnnnbbk',
+      '.knBnnnnbbk.',
+      '..kknbbbkk..',
+      '....kkkk....',
+      '............'
+    ],
+    tomato: [
+      '............',
+      '.....gg.....',
+      '...kkgGkk...',
+      '..krrGgrrk..',
+      '.krrwrrrrrk.',
+      '.krwrrrrrRk.',
+      '.krrrrrrrRk.',
+      '.krrrrrrrRk.',
+      '.krrrrrrRRk.',
+      '..krrrRRRk..',
+      '...kkkkkk...',
+      '............'
+    ],
+    corn: [
+      '.....kk.....',
+      '....kyyk....',
+      '....kyYk....',
+      '...kyyyyk...',
+      '...kyYyYk...',
+      '...kyyyyk...',
+      '..gkyYyYkg..',
+      '..GgyyyygG..',
+      '..GGgyygGG..',
+      '...GGggGG...',
+      '....GGGG....',
+      '.....gg.....'
+    ],
+    pumpkin: [
+      '............',
+      '.....gg.....',
+      '......g.....',
+      '..kkkkgkkk..',
+      '.koooOoooOk.',
+      'kooyoOooOoOk',
+      'koooOoooOoOk',
+      'koooOoooOoOk',
+      'koooOoooOoOk',
+      '.kooOoooOOk.',
+      '..kkkkkkkk..',
+      '............'
+    ],
+    strawberry: [
+      '............',
+      '....g.gg....',
+      '...gGGGGg...',
+      '..krGrGrrk..',
+      '.krrrrryrrk.',
+      '.kryrrrrrRk.',
+      '.krrrryrrRk.',
+      '..krrrrrRk..',
+      '..kryrrRRk..',
+      '...krrRRk...',
+      '....krRk....',
+      '.....kk.....'
+    ],
+    sunflower: [
+      '....yyyy....',
+      '..yyYyyYyy..',
+      '.yyykkkkyyy.',
+      '.yYkBbBbkYy.',
+      'yykbBbBbBkyy',
+      'yykBbBbBbkyy',
+      'yykbBbBbBkyy',
+      '.yYkBbBbkYy.',
+      '.yyykkkkyyy.',
+      '..yyYyyYyy..',
+      '....yyyy....',
+      '............'
+    ],
+    egg: [
+      '............',
+      '....kkkk....',
+      '...kwwwwk...',
+      '..kwwwwwWk..',
+      '..kwwwwwWk..',
+      '.kwwwwwwWWk.',
+      '.kwwwwwwWWk.',
+      '.kwwwwwWWWk.',
+      '..kwwwWWWk..',
+      '...kkkkkk...',
+      '............',
+      '............'
+    ],
+    apple: [
+      '............',
+      '......B.....',
+      '.....Bgg....',
+      '..kkkBkGk...',
+      '.krrrkrrrk..',
+      'krrwrrrrrRk.',
+      'krwrrrrrrRk.',
+      'krrrrrrrrRk.',
+      'krrrrrrrRRk.',
+      '.krrrrrRRk..',
+      '..kkkkkkk...',
+      '............'
+    ],
+    coin: [
+      '....kkkk....',
+      '..kkyyyykk..',
+      '.kyyyyyyyYk.',
+      '.kyyYYyyyYk.',
+      'kyyYyyyyyyYk',
+      'kyyYyyyyyyYk',
+      'kyyYyyyyyyYk',
+      'kyyYyyyyyyYk',
+      '.kyyYYyyyYk.',
+      '.kyyyyyyYYk.',
+      '..kkYYYYkk..',
+      '....kkkk....'
+    ],
+    drop: [
+      '.....kk.....',
+      '.....kck....',
+      '....kcck....',
+      '....kccCk...',
+      '...kcwccCk..',
+      '...kcwccCk..',
+      '..kcwcccCCk.',
+      '..kcccccCCk.',
+      '..kcccccCCk.',
+      '...kccCCCk..',
+      '....kkkkk...',
+      '............'
+    ],
+    star: [
+      '.....kk.....',
+      '....kyyk....',
+      '....kyyk....',
+      'kkkkyyyykkkk',
+      'kyyyyyyyyyYk',
+      '.kyyyyyyyYk.',
+      '..kyyyyyYk..',
+      '..kyyyyyYk..',
+      '.kyyyYYyyYk.',
+      '.kyyYkkYyYk.',
+      'kyYkk..kkYYk',
+      'kkk......kkk'
+    ],
+    sun: [
+      '.....y......',
+      '.y...y...y..',
+      '..y.....y...',
+      '....yyyy....',
+      '...yyyyyy...',
+      'yy.yyyyyy.yy',
+      '...yyyyyy...',
+      '....yyyy....',
+      '..y.....y...',
+      '.y...y...y..',
+      '.....y......',
+      '............'
+    ],
+    moon: [
+      '............',
+      '....kkkk....',
+      '...kwwkk....',
+      '..kwwk......',
+      '.kwwwk......',
+      '.kwwwk......',
+      '.kwwwwk.....',
+      '.kwwwwwkkkk.',
+      '..kwwwwwwk..',
+      '...kkwwkk...',
+      '.....kk.....',
+      '............'
+    ],
+    can: [
+      '............',
+      '......kkk...',
+      '.k...k...k..',
+      'kck.kkkkkkk.',
+      '.kckkcccccCk',
+      '..kkcwccccCk',
+      '...kcwccccCk',
+      '...kccccccCk',
+      '...kccccccCk',
+      '...kcccccCCk',
+      '....kkkkkkk.',
+      '............'
+    ],
+    hoe: [
+      '........kkk.',
+      '.......kssSk',
+      '......kbksSk',
+      '.....kbk.kSk',
+      '....kbk...k.',
+      '...kbk......',
+      '..kbk.......',
+      '.kbk........',
+      'kbk.........',
+      'kk..........',
+      '............',
+      '............'
+    ],
+    bag: [
+      '............',
+      '...kk..kk...',
+      '..knnkknnk..',
+      '...knnnnk...',
+      '..knnnnnnk..',
+      '.knnnGGnnnk.',
+      '.knnGGlGnnk.',
+      '.knnGlGGnnk.',
+      '.knnnGGnnbk.',
+      '.knnnnnnbbk.',
+      '..kkkkkkkk..',
+      '............'
+    ],
+    sprinkler: [
+      '.c...c..c...',
+      '..c..c.c....',
+      'c..c.c.c..c.',
+      '.c..ccc..c..',
+      '....kSk.....',
+      '...kssSk....',
+      '....kSk.....',
+      '....kSk.....',
+      '....kSk.....',
+      '...kkSkk....',
+      '..kSSSSSk...',
+      '..kkkkkkk...'
+    ],
+    house: [
+      '.....kk.....',
+      '....krrk.kk.',
+      '...krrrrkbk.',
+      '..krrrrrrkk.',
+      '.krrrrrrrrk.',
+      'krrrrrrrrrrk',
+      'kkwwwwwwwwkk',
+      '.kwwwkkwcwk.',
+      '.kwwwkbwcwk.',
+      '.kwwwkbwwwk.',
+      '.kkkkkkkkkk.',
+      '............'
+    ],
+    flower: [
+      '............',
+      '....pp.pp...',
+      '...pPPpPPp..',
+      '...pPyyyPp..',
+      '....pyyyp...',
+      '...pPyyyPp..',
+      '...pPPpPPp..',
+      '....pp.pp...',
+      '.....Gg.....',
+      '...GlGg.G...',
+      '....GGgGg...',
+      '.....Gg.....'
+    ],
+    lantern: [
+      '....kkkk....',
+      '...kSSSSk...',
+      '..kkkkkkkk..',
+      '..kyyyyyyk..',
+      '..kyywwyyk..',
+      '..kyywwyyk..',
+      '..kyyyyyyk..',
+      '..kkkkkkkk..',
+      '.....kk.....',
+      '.....kk.....',
+      '.....kk.....',
+      '....kkkk....'
+    ]
+  };
+
+  const BUSH_SMALL = [
+    '....G.....G.....',
+    '.....Gl..Gg.....',
+    '..G..GGlGGg..G..',
+    '...Gl.GGGg.Gg...',
+    '....GGgGGgGg....',
+    '.....gGGGGg.....'
+  ];
+
+  const STALK_SMALL = [
+    '......lG........',
+    '.......Gg.......',
+    '...Gl..Gg.......',
+    '....GG.Gg.lG....',
+    '.....gGGgGG.....',
+    '.......GgG......',
+    '.......Gg.......',
+    '.......Gg.......'
+  ];
+
+  const PLANTS = {
+    sprout: [
+      '.....l....G.....',
+      '.....Gl..Gg.....',
+      '......GgGg......',
+      '.......Gg.......',
+      '.......g........'
+    ],
+    radish: [BUSH_SMALL, [
+      '...l...G....l...',
+      '..G.Gl.Gl.GlG.G.',
+      '...GGlGGlGGgG...',
+      '..G.GGlGGGgG.G..',
+      '...GgGGgGGgGg...',
+      '....gkrrrrkg....',
+      '.....krprRk.....',
+      '......kkkk......'
+    ]],
+    carrot: [BUSH_SMALL, [
+      '....l..l...l....',
+      '..l.G.lG.l.G.l..',
+      '...G.GlG.GlG....',
+      '..l.GGlGGGlG.l..',
+      '...GgGGlGGgGg...',
+      '....gkooookg....',
+      '.....koyoOk.....',
+      '......kkkk......'
+    ]],
+    potato: [BUSH_SMALL, [
+      '......lGl.......',
+      '....GlGGGlG.....',
+      '...GGGlGGGgG....',
+      '..GlGGGgGGGgG...',
+      '..GGgGGGgGGgG...',
+      '...gGGgGGgGg....',
+      '.knnk.gGg.knnk..',
+      '.knBnk...knnBk..',
+      '..kkk.....kkk...'
+    ]],
+    tomato: [[
+      '.......b........',
+      '.....GlbG.......',
+      '....GGlbGg......',
+      '...GlGGbGGg.....',
+      '...GGGgbGgG.....',
+      '....GgGbGg......',
+      '.....gGbg.......',
+      '.......b........'
+    ], [
+      '.......b........',
+      '....GlGbGl......',
+      '...GGlGbGGg.....',
+      '..GlrrGbGrrG....',
+      '..GGrRGbGrRg....',
+      '...GGGgbrrGG....',
+      '..GrrGGbrRGg....',
+      '..GrRgGbGGg.....',
+      '...gGGgbGg......',
+      '.......b........'
+    ]],
+    corn: [[
+      '.......l........',
+      '......lG........',
+      '...l..GG..l.....',
+      '....G.Gg.G......',
+      '.....GGgG.......',
+      '......Gg........',
+      '..l...Gg...l....',
+      '...G..Gg..G.....',
+      '....G.Gg.G......',
+      '.....GGgG.......',
+      '......Gg........'
+    ], [
+      '.......Y........',
+      '......YyY.......',
+      '.......l........',
+      '...l..lG...l....',
+      '....G.GG..G.....',
+      '.....GGgyG......',
+      '......GyyY......',
+      '..l..yGyy..l....',
+      '...GyyGgY.G.....',
+      '....yYGgGG......',
+      '.....GGg........',
+      '......Gg........',
+      '......Gg........'
+    ]],
+    pumpkin: [[
+      '...Gl.....lG....',
+      '..GGGg.g.GGGg...',
+      '..gGg.gGg.gGg...',
+      '.....gg.gg......'
+    ], [
+      '..Gl............',
+      '.GGGg...g.....l.',
+      '.gGg.kkkgkkk.GGg',
+      '....koooOoooOk.g',
+      '...kooyoOooOoOk.',
+      '...koooOoooOoOk.',
+      '...koooOoooOoOk.',
+      '....kooOoooOOk..',
+      '.....kkkkkkkk...'
+    ]],
+    strawberry: [BUSH_SMALL, [
+      '....l..G...l....',
+      '..G.GlGGlGGg.G..',
+      '...GGrGGGgGrG...',
+      '..GlGrRGGGgrRg..',
+      '...GgGGrGgGGg...',
+      '....gGgrRGgg....',
+      '......gGg.......'
+    ]],
+    sunflower: [STALK_SMALL, [
+      '.....yyyyy......',
+      '...yyYyyyYyy....',
+      '..yyykkkkkyyy...',
+      '..yYkBbBbBkYy...',
+      '..yykbBbBbkyy...',
+      '..yYkBbBbBkYy...',
+      '..yyykkkkkyyy...',
+      '...yyYyyyYyy....',
+      '.....yyGyy......',
+      '.......Gg.......',
+      '...Gl..Gg.......',
+      '....GG.Gg.lG....',
+      '.....gGGgGG.....',
+      '.......GgG......',
+      '.......Gg.......',
+      '.......Gg.......'
+    ]]
+  };
+
+  const CHICKEN = [
+    ['......rr..', '.....kwwk.', '.kk.kwwkwo', 'kwwkwwwwk.', 'kwwwwwwwk.', 'kWwwwwwwk.', '.kWWwwwk..', '..kkkkk...', '...y..y...'],
+    ['......rr..', '.....kwwk.', '.kk.kwwkwo', 'kwwkwwwwk.', 'kwwwwwwwk.', 'kWwwwwwwk.', '.kWWwwwk..', '..kkkkk...', '..y....y..']
+  ];
+
+  const CAT = [
+    ['k.......k..k', 'ok......okok', 'ok......oooo', 'ok.....kokok', '.okkkkkoooop', '.kooOoooooo.', '.koooOooook.', '.kok...kok..', '.kk....kk...'],
+    ['........k..k', 'kk......okok', 'ook.....oooo', '.ok....kokok', '.okkkkkoooop', '.kooOoooooo.', '.koooOooook.', '..kok.kok...', '..kk..kk....']
+  ];
+
+  const EGG = ['..kk..', '.kwwk.', 'kwwwWk', 'kwwwWk', 'kwwWWk', '.kWWk.', '..kk..'];
+  const MINI_DROP = ['..k..', '.kck.', '.kck.', 'kcwck', 'kccCk', '.kkk.'];
+  const ARROW = ['..kkk..', '..kyk..', '..kyk..', 'kkkykkk', '.kyyyk.', '..kyk..', '...k...'];
+
+  function plantSprite(rows) {
+    return outline(grid(rows, { w: 18, h: 24, ox: 1, bottom: 2 }), LEAF_OUTLINE);
+  }
+
+  function seedSprite() {
+    return paint(18, 24, function (rect) {
+      [[5, 14], [11, 16], [7, 19]].forEach(function (p) {
+        rect('#f2e2b0', p[0], p[1], 2, 1);
+        rect('#5c3a22', p[0], p[1] + 1, 2, 1);
+      });
+    });
+  }
+
+  function soilTile(base, dark, light) {
+    return paint(16, 16, function (rect) {
+      rect(base, 0, 0, 16, 16);
+      rect(dark, 0, 15, 16, 1);
+      rect(dark, 15, 0, 1, 16);
+      [3, 7, 11].forEach(function (y) {
+        rect(dark, 2, y, 12, 1);
+        rect(light, 2, y + 1, 12, 1);
+      });
+    });
+  }
+
+  function grassTile() {
+    const rnd = rng(3);
+    return paint(16, 16, function (rect) {
+      rect('#7dbd57', 0, 0, 16, 16);
+      rect('#6cab4b', 0, 15, 16, 1);
+      rect('#6cab4b', 15, 0, 1, 16);
+      for (let i = 0; i < 12; i++) {
+        rect(rnd() < 0.5 ? '#6cab4b' : '#93d46a', 1 + Math.floor(rnd() * 13), 1 + Math.floor(rnd() * 13), 1, 1);
+      }
+      rect('#5a9a3f', 4, 5, 1, 3);
+      rect('#5a9a3f', 6, 6, 1, 2);
+      rect('#5a9a3f', 10, 9, 1, 3);
+      rect('#5a9a3f', 12, 10, 1, 2);
+    });
+  }
+
+  function windowPane(rect, x, y, w, h) {
+    rect(OUTLINE, x - 1, y - 1, w + 2, h + 2);
+    rect('#8fd3f4', x, y, w, h);
+    rect('#c9ecfb', x, y, 2, 2);
+    rect(OUTLINE, x + Math.floor(w / 2), y, 1, h);
+    rect(OUTLINE, x, y + Math.floor(h / 2), w, 1);
+  }
+
+  const HOUSE_WINDOWS = [
+    [[34, 39, 7, 7]],
+    [[34, 38, 7, 7]],
+    [[9, 38, 7, 7], [34, 38, 7, 7]]
+  ];
+
+  function house(tier) {
+    const roofs = [['#e3c35a', '#c29a3a'], ['#d0553f', '#a63b2e'], ['#4f8fb0', '#376d8c']];
+    const walls = [['#c8935a', '#a8703a'], ['#f2e6cf', '#d9c7a6'], ['#f7efe0', '#dccdb0']];
+    return outline(paint(50, 58, function (rect) {
+      const roof = roofs[tier];
+      const wall = walls[tier];
+      if (tier > 0) {
+        rect('#8c6f63', 34, 3, 6, 14);
+        rect('#6e554c', 34, 3, 6, 2);
+      }
+      rect(wall[0], 7, 30, 36, 26);
+      rect(wall[1], 7, 52, 36, 4);
+      if (tier === 0) {
+        [34, 39, 44, 49].forEach(function (y) { rect(wall[1], 7, y, 36, 1); });
+      }
+      for (let i = 0; i < 24; i++) {
+        const half = 15 + Math.round((i * 9) / 23);
+        rect(i % 4 === 3 ? roof[1] : roof[0], 25 - half, 7 + i, half * 2, 1);
+      }
+      rect(roof[1], 1, 29, 48, 2);
+      rect('#7d4e24', 21, 42, 9, 14);
+      rect('#5c3a1c', 21, 42, 9, 1);
+      rect('#5c3a1c', 25, 43, 1, 13);
+      rect('#f7d04a', 28, 49, 1, 2);
+      HOUSE_WINDOWS[tier].forEach(function (w) {
+        windowPane(rect, w[0], w[1], w[2], w[3]);
+        if (tier === 2) {
+          rect('#a8703a', w[0] - 1, w[1] + w[3] + 1, w[2] + 2, 2);
+          rect('#f29bb5', w[0], w[1] + w[3], 1, 1);
+          rect('#f7d04a', w[0] + 3, w[1] + w[3], 1, 1);
+          rect('#f29bb5', w[0] + 6, w[1] + w[3], 1, 1);
+        }
+      });
+    }));
+  }
+
+  function tree(seed, tones) {
+    const rnd = rng(seed);
+    return outline(paint(34, 42, function (rect) {
+      rect('#7d4e24', 15, 26, 4, 14);
+      rect('#a8703a', 15, 26, 2, 14);
+      rect('#7d4e24', 13, 39, 8, 1);
+      disc(rect, tones[0], 17, 16, 14);
+      disc(rect, tones[1], 16, 14, 11);
+      disc(rect, tones[2], 12, 10, 5);
+      for (let i = 0; i < 18; i++) {
+        const a = rnd() * Math.PI * 2;
+        const r = rnd() * 11;
+        rect(rnd() < 0.5 ? tones[0] : tones[2], Math.round(16 + Math.cos(a) * r), Math.round(15 + Math.sin(a) * r), 2, 1);
+      }
+    }));
+  }
+
+  function coop() {
+    return outline(paint(34, 32, function (rect) {
+      rect('#c8553d', 5, 13, 24, 17);
+      [17, 22, 27].forEach(function (y) { rect('#a63b2e', 5, y, 24, 1); });
+      for (let i = 0; i < 11; i++) {
+        const half = 8 + Math.round(i * 0.8);
+        rect(i % 3 === 2 ? '#7d4e24' : '#a8703a', 17 - half, 2 + i, half * 2, 1);
+      }
+      rect('#3b2a22', 13, 20, 8, 10);
+      rect('#5c3a1c', 14, 21, 6, 9);
+      rect('#f2e6cf', 23, 17, 4, 4);
+      rect('#3b2a22', 24, 18, 2, 2);
+      rect('#c8914f', 11, 30, 12, 1);
+    }));
+  }
+
+  function well() {
+    return outline(paint(24, 30, function (rect) {
+      for (let i = 0; i < 6; i++) {
+        const half = 6 + i;
+        rect(i % 3 === 2 ? '#a63b2e' : '#d0553f', 12 - half, 1 + i, half * 2, 1);
+      }
+      rect('#a8703a', 4, 7, 2, 12);
+      rect('#a8703a', 18, 7, 2, 12);
+      rect('#7d4e24', 6, 9, 12, 1);
+      rect('#d9cdb8', 11, 10, 1, 4);
+      rect('#9aa5ad', 9, 14, 5, 4);
+      rect('#6b757d', 9, 17, 5, 1);
+      rect('#9aa5ad', 2, 19, 20, 10);
+      rect('#c3ccd2', 2, 19, 20, 2);
+      rect('#3f7fc4', 5, 19, 14, 1);
+      rect('#6b757d', 2, 23, 20, 1);
+      rect('#6b757d', 2, 26, 20, 1);
+      [6, 13, 19].forEach(function (x) { rect('#6b757d', x, 21, 1, 2); });
+      [9, 16].forEach(function (x) { rect('#6b757d', x, 24, 1, 2); });
+      [5, 12, 19].forEach(function (x) { rect('#6b757d', x, 27, 1, 2); });
+    }));
+  }
+
+  function scarecrow() {
+    return outline(paint(18, 30, function (rect) {
+      rect('#a8703a', 8, 12, 2, 17);
+      rect('#a8703a', 2, 14, 14, 2);
+      rect('#f7d04a', 1, 13, 2, 4);
+      rect('#f7d04a', 15, 13, 2, 4);
+      rect('#d0553f', 5, 13, 8, 8);
+      rect('#4f8fb0', 6, 16, 2, 2);
+      rect('#f7d04a', 10, 18, 2, 2);
+      rect('#e8c98a', 6, 6, 6, 6);
+      rect('#3b2a22', 7, 8, 1, 1);
+      rect('#3b2a22', 10, 8, 1, 1);
+      rect('#3b2a22', 8, 10, 2, 1);
+      rect('#c29a3a', 4, 5, 10, 2);
+      rect('#c29a3a', 6, 2, 6, 3);
+      rect('#a63b2e', 6, 4, 6, 1);
+    }));
+  }
+
+  function lantern() {
+    return outline(paint(8, 22, function (rect) {
+      rect('#5a4a44', 3, 8, 2, 12);
+      rect('#5a4a44', 2, 20, 4, 1);
+      rect('#5a4a44', 1, 1, 6, 1);
+      rect('#f7d04a', 2, 2, 4, 5);
+      rect('#fff7e6', 3, 3, 2, 3);
+      rect('#5a4a44', 1, 7, 6, 1);
+    }));
+  }
+
+  function glow() {
+    return paint(48, 48, function (rect, g) {
+      [[22, 0.07], [16, 0.09], [10, 0.11], [5, 0.14]].forEach(function (step) {
+        g.globalAlpha = step[1];
+        disc(rect, '#ffd27a', 24, 24, step[0]);
+      });
+      g.globalAlpha = 1;
+    });
+  }
+
+  const S = (MF.sprites = { canvas: canvas, rng: rng, url: url, houseWindows: HOUSE_WINDOWS });
+
+  S.icons = {};
+  Object.keys(ICONS).forEach(function (name) { S.icons[name] = grid(ICONS[name], { w: 12, h: 12 }); });
+
+  S.tiles = {
+    grass: grassTile(),
+    soil: soilTile('#b98654', '#9a6b3f', '#cc9a66'),
+    wet: soilTile('#80583a', '#63412a', '#946a48')
+  };
+
+  const seed = seedSprite();
+  const sprout = plantSprite(PLANTS.sprout);
+  S.plants = {};
+  MF.config.crops.forEach(function (crop) {
+    const stages = PLANTS[crop.id];
+    S.plants[crop.id] = [seed, sprout, plantSprite(stages[0]), plantSprite(stages[1])];
+  });
+
+  S.house = [house(0), house(1), house(2)];
+  S.trees = [tree(5, ['#3f8a3a', '#57a845', '#7cc65a']), tree(9, ['#357a3c', '#4b9a44', '#6dbb55'])];
+  S.appleTree = tree(21, ['#4a9440', '#66b84e', '#8fd466']);
+  S.coop = coop();
+  S.well = well();
+  S.scarecrow = scarecrow();
+  S.lantern = lantern();
+  S.glow = glow();
+  S.egg = grid(EGG);
+  S.miniDrop = grid(MINI_DROP);
+  S.arrow = grid(ARROW);
+
+  const brown = { w: '#d9a066', W: '#a8703a' };
+  const whiteRight = CHICKEN.map(function (rows) { return grid(rows); });
+  const brownRight = CHICKEN.map(function (rows) { return grid(rows, { pal: brown }); });
+  S.chickens = [
+    { right: whiteRight, left: whiteRight.map(flip) },
+    { right: brownRight, left: brownRight.map(flip) }
+  ];
+  const catRight = CAT.map(function (rows) { return grid(rows); });
+  S.cat = { right: catRight, left: catRight.map(flip) };
+
+  S.shopIcons = {
+    field: S.tiles.soil,
+    can: S.icons.can,
+    tool: S.icons.hoe,
+    fert: S.icons.bag,
+    sprinkler: S.icons.sprinkler,
+    coop: whiteRight[0],
+    trees: S.icons.apple,
+    house: S.icons.house,
+    flowers: S.icons.flower,
+    scarecrow: S.scarecrow,
+    lanterns: S.icons.lantern,
+    cat: catRight[0]
+  };
+})();
