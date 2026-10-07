@@ -39,6 +39,7 @@ MF.locales.ru = {
 
   'msg.noCoins': 'Не хватает монет',
   'msg.full': 'Полная!',
+  'msg.lucky': 'Золотой! ×{n}',
 
   'toast.level': 'Уровень {n}!',
   'toast.newCrop': 'Новые семена: {name}',
@@ -86,6 +87,8 @@ MF.locales.ru = {
   'up.lanterns.desc': 'Тёплый свет по вечерам.',
   'up.cat.name': 'Кот',
   'up.cat.desc': 'Пользы никакой. Идеально.',
+  'up.clover.name': 'Клевер удачи',
+  'up.clover.desc': 'Иногда урожай оказывается золотым и продаётся в разы дороже.',
 
   'set.sound': 'Звуки',
   'set.music': 'Музыка',

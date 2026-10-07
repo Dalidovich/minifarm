@@ -216,6 +216,7 @@
     let gained = 0;
     let spent = 0;
     let failed = null;
+    let lucky = false;
     for (let n = 0; n < p.targets.length; n++) {
       const i = p.targets[n];
       if (stroke.has(i)) continue;
@@ -241,13 +242,18 @@
         MF.render.burst(pos.x + 8, pos.y + 6, ['#8fd3f4', '#5bb4e5', '#c9ecfb'], 7);
       } else if (p.action === 'harvest') {
         const crop = cropById[plot.crop];
-        gained += priceOf(crop);
+        const golden = Math.random() < C.luckChance[s.up.clover];
+        gained += priceOf(crop) * (golden ? C.luckBonus : 1);
         addXp(crop.xp);
         plot.kind = 'soil';
         plot.crop = null;
         plot.growth = 0;
         progressOrders(crop.id, 1);
-        MF.render.burst(pos.x + 8, pos.y + 6, ['#fff7e6', '#f7d04a', '#a4de6a'], 7);
+        if (golden) {
+          lucky = true;
+          MF.render.burst(pos.x + 8, pos.y + 6, ['#f7d04a', '#fff7e6', '#d6a021'], 18);
+          MF.ui.float(pos.x + 8, pos.y - 8, MF.t('msg.lucky', { n: C.luckBonus }), 'lucky');
+        } else MF.render.burst(pos.x + 8, pos.y + 6, ['#fff7e6', '#f7d04a', '#a4de6a'], 7);
       }
       stroke.add(i);
       done++;
@@ -256,7 +262,7 @@
       MF.audio.play(p.action);
       if (gained) {
         earn(gained, cx, cy);
-        MF.audio.play('coin');
+        MF.audio.play(lucky ? 'lucky' : 'coin');
       }
       if (spent) MF.ui.float(cx, cy, '-' + spent, 'spend');
       advanceTutorial(p.action);

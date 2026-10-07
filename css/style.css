@@ -444,6 +444,12 @@ img.sil {
   color: #ff9a85;
 }
 
+.float.lucky {
+  color: #ffe98a;
+  font-size: 20px;
+  animation-duration: 1.6s;
+}
+
 #toasts {
   display: flex;
   flex-direction: column;

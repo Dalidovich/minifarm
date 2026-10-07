@@ -39,6 +39,7 @@ MF.locales.en = {
 
   'msg.noCoins': 'Not enough coins',
   'msg.full': 'Full!',
+  'msg.lucky': 'Golden! ×{n}',
 
   'toast.level': 'Level {n}!',
   'toast.newCrop': 'New seeds: {name}',
@@ -86,6 +87,8 @@ MF.locales.en = {
   'up.lanterns.desc': 'A warm light for the evenings.',
   'up.cat.name': 'Cat',
   'up.cat.desc': 'Does nothing useful. Perfect.',
+  'up.clover.name': 'Lucky clover',
+  'up.clover.desc': 'Now and then a harvest turns out golden and sells for many times the price.',
 
   'set.sound': 'Sounds',
   'set.music': 'Music',

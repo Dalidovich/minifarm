@@ -428,6 +428,20 @@
       '.....kk.....',
       '.....kk.....',
       '....kkkk....'
+    ],
+    clover: [
+      '..kkk..kkk..',
+      '.kGGGkkGGGk.',
+      'kGlGGGGGlGGk',
+      'kGGGGggGGGGk',
+      '.kGGGggGGGk.',
+      '.kGGGggGGGk.',
+      'kGGGGggGGGGk',
+      'kGlGGGGGGGgk',
+      '.kGGGkkGGgk.',
+      '..kkkgkkkk..',
+      '....kgk.....',
+      '....kk......'
     ]
   };
 
@@ -1013,6 +1027,7 @@
     coop: whiteRight[0],
     trees: S.icons.apple,
     house: S.icons.house,
+    clover: S.icons.clover,
     flowers: S.icons.flower,
     scarecrow: S.scarecrow,
     lanterns: S.icons.lantern,
