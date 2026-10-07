@@ -9,7 +9,7 @@
   const upById = {};
   C.upgrades.forEach(function (u) { upById[u.id] = u; });
 
-  const G = (MF.game = { state: null, chickens: [], cat: null, farmer: null, queue: [], cropById: cropById, upById: upById, maxLevel: MAX_LEVEL });
+  const G = (MF.game = { state: null, chickens: [], ducks: [], cat: null, farmer: null, queue: [], cropById: cropById, upById: upById, maxLevel: MAX_LEVEL });
 
   let saveTimer = 0;
   let warnAt = 0;
@@ -64,7 +64,9 @@
   function canCapacity() { return C.canCapacity[G.state.up.can]; }
   function growSpeed() { return 1 + C.fertBonus * G.state.up.fert; }
   function isDaily(id) { return !!G.state.daily && G.state.daily.crop === id; }
-  function priceOf(item) { return Math.round(item.sell * C.houseBonus[G.state.up.house] * (isDaily(item.id) ? C.dailyBonus : 1)); }
+  function dailyBonus() { return C.dailyBonus[G.state.up.sign]; }
+  function offlineCap() { return C.offlineCap[G.state.up.hammock]; }
+  function priceOf(item) { return Math.round(item.sell * C.houseBonus[G.state.up.house] * (isDaily(item.id) ? dailyBonus() : 1)); }
   function itemInfo(id) { return cropById[id] || C.products[id]; }
 
   function isUnlocked(col, row) {
@@ -77,7 +79,8 @@
   }
 
   function seedCost(crop) {
-    return crop.id === C.crops[0].id && G.state.coins < crop.cost ? 0 : crop.cost;
+    const cost = Math.max(1, Math.round(crop.cost * C.seedDiscount[G.state.up.seeds]));
+    return crop.id === C.crops[0].id && G.state.coins < cost ? 0 : cost;
   }
 
   function plotAction(plot) {
@@ -146,7 +149,7 @@
       item: item,
       need: need,
       have: 0,
-      coins: Math.round(need * info.sell * 0.6),
+      coins: Math.round(need * info.sell * 0.6 * C.orderBonus[s.up.market]),
       xp: Math.max(1, Math.round(need * info.xp * 0.6))
     };
   }
@@ -654,9 +657,14 @@
     return upById[id].levels[G.state.up[id]] || null;
   };
 
+  G.missingFor = function (id) {
+    const need = upById[id].requires;
+    return need && !G.state.up[need] ? need : null;
+  };
+
   G.canBuy = function (id) {
     const next = G.nextLevelOf(id);
-    return !!next && G.state.level >= next.level && G.state.coins >= next.cost;
+    return !!next && !G.missingFor(id) && G.state.level >= next.level && G.state.coins >= next.cost;
   };
 
   G.canBuyAny = function () {
@@ -721,6 +729,10 @@
     return { x: rand(C.pen.x + 8, C.pen.x + C.pen.w - 10), y: rand(C.pen.y + 24, C.pen.y + C.pen.h - 6) };
   }
 
+  function duckPoint() {
+    return { x: rand(C.duckZone.x, C.duckZone.x + C.duckZone.w), y: rand(C.duckZone.y, C.duckZone.y + C.duckZone.h) };
+  }
+
   function catPoint() {
     return { x: rand(C.catZone.x, C.catZone.x + C.catZone.w), y: rand(C.catZone.y, C.catZone.y + C.catZone.h) };
   }
@@ -736,6 +748,9 @@
       G.chickens.push(walker(penPoint(), { eggT: rand(C.eggInterval * 0.4, C.eggInterval), look: G.chickens.length % 2 }));
     }
     G.chickens.length = wanted;
+    const ducks = s.up.ducks ? 2 : 0;
+    while (G.ducks.length < ducks) G.ducks.push(walker(duckPoint(), { look: G.ducks.length % 2 }));
+    G.ducks.length = ducks;
     if (s.up.cat && !G.cat) G.cat = walker(catPoint(), {});
     if (!s.up.cat) G.cat = null;
   }
@@ -789,7 +804,7 @@
     const crop = pick(open.filter(function (c) { return c.id !== last; }));
     s.daily = { day: day, crop: crop.id };
     if (quiet) return;
-    MF.ui.toast(MF.t('toast.daily', { name: MF.t('crop.' + crop.id), pct: Math.round((C.dailyBonus - 1) * 100) }), crop.id);
+    MF.ui.toast(MF.t('toast.daily', { name: MF.t('crop.' + crop.id), pct: Math.round((dailyBonus() - 1) * 100) }), crop.id);
   }
 
   function updatePlots(dt, quiet) {
@@ -834,7 +849,7 @@
     G.chickens.forEach(function (ch) {
       ch.eggT -= dt;
       while (ch.eggT <= 0) {
-        ch.eggT += C.eggInterval * rand(0.85, 1.15);
+        ch.eggT += (C.eggInterval / C.feedSpeed[s.up.feed]) * rand(0.85, 1.15);
         if (s.eggs.length < G.chickens.length * 2) {
           const spot = quiet ? penPoint() : ch;
           s.eggs.push({ x: Math.round(spot.x), y: Math.round(spot.y) });
@@ -842,11 +857,12 @@
       }
       moveWalker(ch, step, 12, penPoint, 0.8, 4);
     });
+    G.ducks.forEach(function (duck) { moveWalker(duck, step, 5, duckPoint, 2, 8); });
     if (G.cat) moveWalker(G.cat, step, 16, catPoint, 3, 10);
     s.trees.forEach(function (tree) {
       tree.t -= dt;
       while (tree.t <= 0) {
-        tree.t += C.appleInterval;
+        tree.t += C.appleInterval / C.shearsSpeed[s.up.shears];
         if (tree.apples < C.maxApples) tree.apples++;
       }
     });
@@ -902,13 +918,14 @@
         s = Object.assign(base, data);
         s.up = Object.assign(freshState().up, data.up);
         s.settings = Object.assign(defaultSettings(), data.settings);
-        away = Math.min(C.offlineCap, Math.max(0, (Date.now() - data.savedAt) / 1000));
+        away = Math.min(C.offlineCap[s.up.hammock], Math.max(0, (Date.now() - data.savedAt) / 1000));
       }
     } catch (e) {
       s = freshState();
     }
     G.state = s;
     G.chickens = [];
+    G.ducks = [];
     G.cat = null;
     G.queue = [];
     G.farmer = freshFarmer();
@@ -922,6 +939,7 @@
     G.state = freshState();
     G.state.settings = settings;
     G.chickens = [];
+    G.ducks = [];
     G.cat = null;
     G.queue = [];
     G.farmer = freshFarmer();
@@ -935,6 +953,8 @@
   G.wetDuration = wetDuration;
   G.priceOf = priceOf;
   G.isDaily = isDaily;
+  G.dailyBonus = dailyBonus;
+  G.offlineCap = offlineCap;
   G.seedCost = seedCost;
   G.itemInfo = itemInfo;
 })();

@@ -394,6 +394,17 @@
         items.push({ y: spot[1] + 22, draw: function () { ctx.drawImage(S.lantern, spot[0], spot[1]); } });
       });
     }
+    MF.game.ducks.forEach(function (duck, i) {
+      items.push({
+        y: duck.y,
+        draw: function () {
+          const x = Math.round(duck.x);
+          const y = Math.round(duck.y) + (Math.sin(clock * 2 + i * 2) > 0.6 ? 1 : 0);
+          ctx.drawImage(S.ducks[duck.look][duck.left ? 'left' : 'right'], x - 5, y - 7);
+          rect(ctx, '#c9ecfb', x - 5, y + 1, 10, 1);
+        }
+      });
+    });
     const cat = MF.game.cat;
     if (cat) {
       items.push({

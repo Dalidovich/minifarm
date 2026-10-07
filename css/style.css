@@ -625,6 +625,10 @@ img.sil {
   border: 2px dashed #a8895a;
 }
 
+.tag.need {
+  max-width: 72px;
+}
+
 .tag.done {
   color: var(--green-dark);
 }

@@ -442,6 +442,90 @@
       '..kkkgkkkk..',
       '....kgk.....',
       '....kk......'
+    ],
+    seeds: [
+      '............',
+      '..kkkkkkkk..',
+      '..kwwwwwwk..',
+      '..kkkkkkkk..',
+      '..kwwwwwwk..',
+      '..kwwGGwwk..',
+      '..kwGggGwk..',
+      '..kwwggwwk..',
+      '..kwwwgwwk..',
+      '..kwwwwwwk..',
+      '..kkkkkkkk..',
+      '............'
+    ],
+    market: [
+      '............',
+      '.kkkkkkkkkk.',
+      'krrwwrrwwrrk',
+      'krrwwrrwwrrk',
+      '.kkkkkkkkkk.',
+      '..k......k..',
+      '..k.r.oy.k..',
+      '.kkkkkkkkkk.',
+      '.kbbbbbbbbk.',
+      '.kbBBBBBBbk.',
+      '.kkkkkkkkkk.',
+      '............'
+    ],
+    sign: [
+      '............',
+      '.kkkkkkkkkk.',
+      '.knnnnnnnnk.',
+      '.knnnyynnnk.',
+      '.knnyyyynnk.',
+      '.knnnyynnnk.',
+      '.knnnnnnnnk.',
+      '.kkkkkkkkkk.',
+      '.....kk.....',
+      '.....kk.....',
+      '.....kk.....',
+      '....kkkk....'
+    ],
+    feed: [
+      '............',
+      '............',
+      '....y..y....',
+      '..y..yy..y..',
+      '.kkkkkkkkkk.',
+      '.kyyYyyyYyk.',
+      '.kkkkkkkkkk.',
+      '..kbbbbbbk..',
+      '..kbbbbbBk..',
+      '...kBBBBk...',
+      '....kkkk....',
+      '............'
+    ],
+    shears: [
+      '..k......k..',
+      '..kk....kk..',
+      '..ksk..ksk..',
+      '...kskksk...',
+      '....kssk....',
+      '.....kk.....',
+      '....krrk....',
+      '...krkkrk...',
+      '..krk..krk..',
+      '..krk..krk..',
+      '...kk..kk...',
+      '............'
+    ],
+    hammock: [
+      '............',
+      '............',
+      '.k........k.',
+      '.krr....rrk.',
+      '.kwwrrrrwwk.',
+      '.k..wwww..k.',
+      '.k........k.',
+      '.k........k.',
+      '.k........k.',
+      'kkk......kkk',
+      '............',
+      '............'
     ]
   };
 
@@ -607,6 +691,7 @@
     ['........k..k', 'kk......okok', 'ook.....oooo', '.ok....kokok', '.okkkkkoooop', '.kooOoooooo.', '.koooOooook.', '..kok.kok...', '..kk..kk....']
   ];
 
+  const DUCK = ['......kk..', '.....kwwk.', '.kk.kwwkwo', 'kwwkwwwwk.', 'kwwwwwwwk.', 'kWwwwwwwk.', '.kWWwwwk..', '..kkkkk...'];
   const EGG = ['..kk..', '.kwwk.', 'kwwwWk', 'kwwwWk', 'kwwWWk', '.kWWk.', '..kk..'];
   const MINI_DROP = ['..k..', '.kck.', '.kck.', 'kcwck', 'kccCk', '.kkk.'];
 
@@ -834,6 +919,8 @@
     { right: whiteRight, left: whiteRight.map(flip) },
     { right: brownRight, left: brownRight.map(flip) }
   ];
+  const duckRight = [grid(DUCK), grid(DUCK, { pal: brown })];
+  S.ducks = duckRight.map(function (duck) { return { right: duck, left: flip(duck) }; });
   const catRight = CAT.map(function (rows) { return grid(rows); });
   S.cat = { right: catRight, left: catRight.map(flip) };
 
@@ -1024,6 +1111,13 @@
     tool: S.icons.hoe,
     fert: S.icons.bag,
     sprinkler: S.icons.sprinkler,
+    seeds: S.icons.seeds,
+    market: S.icons.market,
+    sign: S.icons.sign,
+    feed: S.icons.feed,
+    shears: S.icons.shears,
+    hammock: S.icons.hammock,
+    ducks: duckRight[0],
     coop: whiteRight[0],
     trees: S.icons.apple,
     house: S.icons.house,

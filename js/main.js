@@ -14,7 +14,7 @@
 
     let last = performance.now();
     function frame(now) {
-      const dt = Math.max(0, Math.min((now - last) / 1000, MF.config.offlineCap));
+      const dt = Math.max(0, Math.min((now - last) / 1000, MF.game.offlineCap()));
       last = now;
       MF.game.update(dt);
       MF.render.draw(Math.min(dt, MAX_FRAME));

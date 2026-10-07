@@ -87,7 +87,7 @@
         '<span class="cost">' + ico('coin', 'tiny') + cost + '</span>' +
         (daily ? '<span class="mark">' + ico('star', 'tiny') + '</span>' : '') +
         '<span class="tip">' + name + '<br>' + t('sellsFor') + ' ' + ico('coin', 'tiny') + G.priceOf(crop) +
-        (daily ? '<br><span class="good">' + t('daily.tip', { pct: Math.round((C.dailyBonus - 1) * 100) }) + '</span>' : '') + '</span></button>';
+        (daily ? '<br><span class="good">' + t('daily.tip', { pct: Math.round((G.dailyBonus() - 1) * 100) }) + '</span>' : '') + '</span></button>';
     }).join('');
   }
 
@@ -108,6 +108,7 @@
     const items = C.upgrades.map(function (u) {
       const lvl = s.up[u.id];
       const next = u.levels[lvl];
+      const missing = G.missingFor(u.id);
       const nameKey = lvl > 0 && MF.i18n.has('up.' + u.id + '.name2') ? 'up.' + u.id + '.name2' : 'up.' + u.id + '.name';
       let pips = '';
       if (u.levels.length > 1) {
@@ -116,6 +117,7 @@
       let action;
       if (!next) action = '<div class="tag done">' + t('shop.max') + '</div>';
       else if (s.level < next.level) action = '<div class="tag lock">' + t('lvlReq', { n: next.level }) + '</div>';
+      else if (missing) action = '<div class="tag lock need">' + t('shop.needs', { name: t('up.' + missing + '.name') }) + '</div>';
       else {
         action = '<button class="btn green buy' + (s.coins < next.cost ? ' poor' : '') + '" data-buy="' + u.id + '">' +
           ico('coin', 'tiny') + next.cost + '</button>';
