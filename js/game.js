@@ -377,7 +377,7 @@
     const crop = s.daily.crop;
     if (!s.up.manager) return;
     s.orders.forEach(function (o, i) {
-      if (o.item === crop && orderReady(o)) deliverOrder(i);
+      if (s.up.manager > 1 && o.item === crop && orderReady(o)) deliverOrder(i);
     });
     if (s.orders.some(function (o) { return o.item === crop; })) return;
     const price = priceOf(cropById[crop]);

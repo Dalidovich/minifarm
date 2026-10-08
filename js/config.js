@@ -139,7 +139,7 @@ MF.config = {
     { id: 'market', levels: [{ cost: 350, level: 3 }, { cost: 1800, level: 5 }, { cost: 7000, level: 7 }] },
     { id: 'sign', levels: [{ cost: 500, level: 3 }, { cost: 3500, level: 6 }] },
     { id: 'insider', levels: [{ cost: 800, level: 4 }] },
-    { id: 'manager', requires: 'barn', staff: 3, levels: [{ cost: 1500, level: 3 }] },
+    { id: 'manager', requires: 'barn', staff: 3, levels: [{ cost: 1500, level: 3 }, { cost: 2800, level: 5 }] },
     { id: 'coop', levels: [{ cost: 300, level: 3 }, { cost: 400, level: 3 }, { cost: 700, level: 4 }, { cost: 1200, level: 5 }] },
     { id: 'feed', requires: 'coop', levels: [{ cost: 500, level: 4 }, { cost: 2500, level: 6 }] },
     { id: 'henhand', requires: 'coop', levels: [{ cost: 1500, level: 5 }] },
