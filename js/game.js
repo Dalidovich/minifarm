@@ -292,8 +292,12 @@
     }
     const kept = Math.min(count, barnCapacity() - stockTotal());
     if (kept > 0) s.stock[id] = stockOf(id) + kept;
-    if (kept < count) barnFull();
-    return (count - kept) * price;
+    const spilled = count - kept;
+    if (spilled > 0) {
+      barnFull();
+      progressOrders(id, spilled);
+    }
+    return spilled * price;
   }
 
   function showHaul(kept, coins, x, y) {
