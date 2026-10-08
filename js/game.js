@@ -1636,6 +1636,7 @@
   G.dailyBonus = dailyBonus;
   G.offlineCap = offlineCap;
   G.seedCost = seedCost;
+  G.growTime = function (crop) { return crop.time / growSpeed(crop.id); };
   G.itemInfo = itemInfo;
   G.barnCapacity = barnCapacity;
   G.stockOf = stockOf;

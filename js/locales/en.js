@@ -16,6 +16,10 @@ MF.locales.en = {
   'lvlReq': 'Level {n}',
   'lvlShort': 'Lv {n}',
   'sellsFor': 'sells for',
+  'growsIn': 'grows in {time}',
+  'time.sec': '{s} s',
+  'time.min': '{m} min',
+  'time.minSec': '{m} min {s} s',
   'daily.tip': 'Crop of the day: +{pct}%',
   'daily.next': 'Crop of the day tomorrow',
 
