@@ -58,7 +58,6 @@ MF.config = {
   orderSkipDelay: 30,
   barnCapacity: [0, 30, 70, 150, 300],
   dailyBonus: [1.5, 1.75, 2],
-  dailyPool: 4,
   insiderPhase: 0.75,
   managerPhase: 23.5 / 24,
   night: [0.67, 0.96],
@@ -108,14 +107,22 @@ MF.config = {
     { id: 'invader', set: 'games', bonus: 'daily', value: 0.1, spot: [242, 180] }
   ],
   crops: [
-    { id: 'radish', level: 1, cost: 2, sell: 6, time: 20, xp: 1 },
-    { id: 'carrot', level: 2, cost: 5, sell: 12, time: 40, xp: 2 },
-    { id: 'potato', level: 3, cost: 10, sell: 24, time: 70, xp: 4 },
-    { id: 'tomato', level: 4, cost: 18, sell: 42, time: 100, xp: 6 },
-    { id: 'corn', level: 5, cost: 30, sell: 70, time: 140, xp: 9 },
-    { id: 'pumpkin', level: 6, cost: 50, sell: 120, time: 200, xp: 14 },
-    { id: 'strawberry', level: 7, cost: 80, sell: 190, time: 260, xp: 20 },
-    { id: 'sunflower', level: 8, cost: 120, sell: 290, time: 330, xp: 28 }
+    { id: 'radish', group: 'root', level: 1, cost: 2, sell: 6, time: 20, xp: 1 },
+    { id: 'carrot', group: 'root', level: 2, cost: 5, sell: 12, time: 40, xp: 2 },
+    { id: 'potato', group: 'root', level: 3, cost: 10, sell: 24, time: 70, xp: 4 },
+    { id: 'tomato', group: 'top', level: 4, cost: 18, sell: 42, time: 100, xp: 6 },
+    { id: 'corn', group: 'top', level: 5, cost: 30, sell: 70, time: 140, xp: 9 },
+    { id: 'pumpkin', group: 'top', level: 6, cost: 50, sell: 120, time: 200, xp: 14 },
+    { id: 'strawberry', group: 'top', level: 7, cost: 80, sell: 190, time: 260, xp: 20 },
+    { id: 'sunflower', group: 'top', level: 8, cost: 120, sell: 290, time: 330, xp: 28 }
+  ],
+  groups: [
+    { id: 'root', icon: 'carrot' },
+    { id: 'top', icon: 'corn' }
+  ],
+  tickets: [
+    { id: 'request', level: 5, rate: 0.3, orders: 3 },
+    { id: 'poster', level: 5, rate: 0.25 }
   ],
   products: {
     egg: { sell: 15, xp: 2 },

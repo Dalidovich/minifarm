@@ -58,6 +58,7 @@
         '<div class="row"><img class="px" id="st-sky" alt=""><span id="st-day"></span><span id="st-clock"></span></div>' +
       '</div>' +
       '<div class="card orders"><div class="head">' + t('orders') +
+        '<span class="stock" id="request-mark"></span>' +
         '<button class="stock" id="btn-barn">' + ico('crate', 'tiny') + '<span id="barn-count"></span></button></div>' +
         '<div id="orders"></div></div>' +
       '<div class="btns">' +
@@ -92,6 +93,10 @@
     const s = total % 60;
     if (!m) return t('time.sec', { s: s });
     return s ? t('time.minSec', { m: m, s: s }) : t('time.min', { m: m });
+  }
+
+  function groupIcon(id) {
+    return C.groups.filter(function (group) { return group.id === id; })[0].icon;
   }
 
   function hotbarHtml() {
@@ -142,6 +147,29 @@
     return base;
   }
 
+  function ticketActionHtml(ticket) {
+    const s = G.state;
+    if (s.level < ticket.level) return '<div class="tag lock">' + t('lvlReq', { n: ticket.level }) + '</div>';
+    if (s.request && ticket.id === 'request') {
+      return '<div class="tag done">' + t('ticket.request.active', { name: t('group.' + s.request.group), n: s.request.left }) + '</div>';
+    }
+    if (G.ticketBusy(ticket.id)) return '<div class="tag done">' + t('ticket.poster.booked', { name: t('group.' + G.nextPoster()) }) + '</div>';
+    return C.groups.map(function (group) {
+      const cost = G.ticketCost(ticket.id, group.id);
+      const crops = G.openCrops(group.id).map(function (crop) { return t('crop.' + crop.id); }).join(', ');
+      return '<button class="btn green' + (s.coins < cost ? ' poor' : '') + '" data-ticket="' + ticket.id + '" data-group="' + group.id +
+        '" title="' + t('group.' + group.id) + ': ' + crops + '">' + ico(group.icon, 'tiny') + t('group.' + group.id) + ' ' + ico('coin', 'tiny') + cost + '</button>';
+    }).join('');
+  }
+
+  function ticketHtml(ticket) {
+    return '<div class="item wide">' +
+      '<div class="i-icon">' + ico(ticket.id) + '</div>' +
+      '<div class="i-text"><div class="i-name">' + t('ticket.' + ticket.id + '.name') + '</div>' +
+      '<div class="i-desc">' + t('ticket.' + ticket.id + '.desc', { n: ticket.orders }) + '</div></div>' +
+      '<div class="i-act sell">' + ticketActionHtml(ticket) + '</div></div>';
+  }
+
   function shopHtml() {
     const s = G.state;
     const items = C.upgrades.map(function (u) {
@@ -173,7 +201,8 @@
         '<div class="i-act' + (manage ? ' sell' : '') + '">' + action + '</div></div>';
     }).join('');
     return '<div class="p-head"><span>' + t('shop') + '</span><span class="p-coins">' + ico('coin') + s.coins +
-      '</span><button class="p-x" data-close>×</button></div><div class="p-list">' + items + '</div>';
+      '</span><button class="p-x" data-close>×</button></div><div class="p-list">' +
+      statGroupHtml('tickets', '', C.tickets.map(ticketHtml)) + statGroupHtml('upgrades', '', [items]) + '</div>';
   }
 
   function stockHtml(id) {
@@ -421,6 +450,11 @@
       if (bought && target.dataset.buy === 'manager' && G.hasPolicy()) return openModal('manager');
       return renderModal();
     }
+    if (target.dataset.ticket) {
+      G.buyTicket(target.dataset.ticket, target.dataset.group);
+      cache.hotbar = null;
+      return renderModal();
+    }
     if (target.dataset.policy) {
       G.setPolicy(target.dataset.policy, target.dataset.mode === 'sell');
       return renderModal();
@@ -588,6 +622,11 @@
     }
     $('shop-badge').classList.toggle('hidden', !G.canBuyAny());
     setText($('relics-count'), s.relics.length + '/' + C.relics.length);
+    $('request-mark').classList.toggle('hidden', !s.request);
+    if (s.request) {
+      $('request-mark').title = t('request.tip', { name: t('group.' + s.request.group), n: s.request.left });
+      setHtml('request', $('request-mark'), ico(groupIcon(s.request.group), 'tiny') + '×' + s.request.left);
+    }
     $('btn-barn').classList.toggle('hidden', !s.up.barn);
     $('btn-barn').classList.toggle('full', G.stockTotal() >= G.barnCapacity());
     setText($('barn-count'), G.stockTotal() + '/' + G.barnCapacity());
