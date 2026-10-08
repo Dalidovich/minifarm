@@ -96,6 +96,8 @@
 
   function hotbarHtml() {
     const s = G.state;
+    const shovel = !s.up.shovel ? '' : '<button class="slot' + (s.selected === 'shovel' ? ' sel' : '') + '" data-crop="shovel">' +
+      ico('shovel') + '<span class="tip">' + t('tool.shovel') + '<br>' + t('tool.shovelTip') + '</span></button>';
     return C.crops.map(function (crop) {
       const name = t('crop.' + crop.id);
       if (crop.level > s.level) {
@@ -114,7 +116,7 @@
         '<br>' + t('growsIn', { time: durationText(G.growTime(crop)) }) +
         (daily ? '<br><span class="good">' + t('daily.tip', { pct: Math.round((G.dailyBonus() - 1) * 100) }) + '</span>' : '') +
         (next ? '<br><span class="good">' + t('daily.next') + '</span>' : '') + '</span></button>';
-    }).join('');
+    }).join('') + shovel;
   }
 
   function ordersHtml() {
@@ -284,6 +286,7 @@
       statHtml(S.icons.seeds, 'stats.planted', st.planted),
       statHtml(S.icons.can, 'stats.watered', st.watered)
     ];
+    if (s.up.shovel) field.push(statHtml(S.icons.shovel, 'stats.uprooted', st.uprooted));
     if (s.up.clover || st.golden) field.push(statHtml(S.icons.clover, 'stats.golden', st.golden));
     if (s.up.flowers || st.pollinated) field.push(statHtml(S.icons.flower, 'stats.pollinated', st.pollinated));
     const fun = [];
@@ -490,11 +493,13 @@
       return t('act.plant', { name: t('crop.' + crop.id) }) + ' <span class="' + (s.coins < G.seedCost(crop) ? 'bad' : '') + '">' +
         ico('coin', 'tiny') + cost + '</span>';
     }
+    if (plot.kind !== 'crop') return '';
     const name = t('crop.' + plot.crop);
     const pollen = plot.pollen ? '<br><small>' + t('info.pollen') + '</small>' : '';
     if (p.action === 'harvest') return t('act.harvest', { name: name }) + pollen;
     const pct = Math.floor((plot.growth / G.cropById[plot.crop].time) * 100);
     const info = t('info.growing', { name: name, pct: pct }) + (plot.pollen ? ' · ' + t('info.pollen') : '');
+    if (p.action === 'uproot') return t('act.uproot', { name: name }) + '<br><small>' + info + '</small>';
     const ripe = ripeText(plot);
     if (p.action === 'water') return t('act.water') + '<br><small>' + info + (ripe ? '<br>' + ripe : '') + '</small>';
     return info + (ripe ? '<br><small>' + ripe + '</small>' : '');
