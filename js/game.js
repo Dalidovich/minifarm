@@ -74,6 +74,7 @@
       orders: [{ wait: 45 }, { wait: 150 }, { wait: 300 }],
       stock: {},
       hands: [],
+      rent: {},
       policy: freshPolicy(),
       rain: 0,
       rainIn: 420,
@@ -94,6 +95,7 @@
     };
   }
 
+  function ownedLevel(id) { return G.state.up[id] - (G.state.rent[id] ? 1 : 0); }
   function fieldSize() { return C.field.tiers[G.state.up.field]; }
   function wetDuration() { return C.wetDuration[G.state.up.can]; }
   function canCapacity() { return C.canCapacity[G.state.up.can]; }
@@ -166,7 +168,8 @@
   function orderHave(o) { return G.state.up.barn ? Math.min(o.need, o.have + stockOf(o.item)) : o.have; }
   function staffCount() {
     const s = G.state;
-    return s.hands.length + C.workers.filter(function (cfg) { return !cfg.stroll && s.up[cfg.id]; }).length;
+    const hired = s.hands.filter(function (hand) { return !hand.rented; }).length;
+    return hired + C.workers.filter(function (cfg) { return !cfg.stroll && ownedLevel(cfg.id); }).length;
   }
 
   function isUnlocked(col, row) {
@@ -285,7 +288,7 @@
       if (c.level === s.level) lines.push(MF.t('toast.newCrop', { name: MF.t('crop.' + c.id) }));
     });
     const newGoods = C.upgrades.some(function (u) {
-      return u.levels.some(function (l, i) { return l.level === s.level && s.up[u.id] <= i; });
+      return u.levels.some(function (l, i) { return l.level === s.level && ownedLevel(u.id) <= i; });
     });
     if (newGoods) lines.push(MF.t('toast.newShop'));
     MF.ui.toast(lines.join('<br>'), 'star');
@@ -1323,7 +1326,7 @@
   };
 
   G.nextLevelOf = function (id) {
-    return upById[id].levels[G.state.up[id]] || null;
+    return upById[id].levels[ownedLevel(id)] || null;
   };
 
   G.missingFor = function (id) {
@@ -1351,20 +1354,21 @@
       return false;
     }
     spend(G.nextLevelOf(id).cost);
-    s.up[id]++;
-    if (id === 'can') s.water = canCapacity();
-    if (id === 'trees') s.trees.push({ apples: 0, t: C.appleInterval });
-    if (id === 'hands') s.hands.push({ zone: null, crop: isDigging() ? C.crops[0].id : s.selected });
-    if (id === 'barn' && s.up.barn === 1) {
-      fitOrders();
-      MF.ui.toast(MF.t('toast.barn'), 'crate');
+    if (s.rent[id]) keepRented(id);
+    else {
+      s.up[id]++;
+      if (id === 'can') s.water = canCapacity();
+      if (id === 'trees') s.trees.push({ apples: 0, t: C.appleInterval });
+      if (id === 'hands') s.hands.push(freshHire());
+      if (id === 'barn' && s.up.barn === 1) {
+        fitOrders();
+        MF.ui.toast(MF.t('toast.barn'), 'crate');
+      }
     }
     if (s.tut < FINAL_TUTORIAL_STEP) s.tut = FINAL_TUTORIAL_STEP;
-    syncAnimals();
-    rebuildNav();
-    MF.render.rebuild();
+    refreshFarm();
     MF.audio.play('buy');
-    const allDone = C.upgrades.every(function (u) { return s.up[u.id] >= u.levels.length; });
+    const allDone = C.upgrades.every(function (u) { return ownedLevel(u.id) >= u.levels.length; });
     if (allDone && !s.completed) {
       s.completed = true;
       MF.ui.toast(MF.t('toast.done'), 'star');
@@ -1373,6 +1377,72 @@
     G.save();
     return true;
   };
+
+  function freshHire() {
+    return { zone: null, crop: isDigging() ? C.crops[0].id : G.state.selected };
+  }
+
+  function keepRented(id) {
+    const s = G.state;
+    delete s.rent[id];
+    if (id === 'hands') s.hands.forEach(function (hand) { delete hand.rented; });
+  }
+
+  function refreshFarm() {
+    syncAnimals();
+    rebuildNav();
+    MF.render.rebuild();
+  }
+
+  G.rentCost = function (id) {
+    return Math.max(5, Math.round((G.nextLevelOf(id).cost * upById[id].rent) / 5) * 5);
+  };
+
+  G.rentLeft = function (id) {
+    return Math.max(0, (G.state.rent[id] || 0) - G.state.time);
+  };
+
+  G.canRent = function (id) {
+    const s = G.state;
+    const next = G.nextLevelOf(id);
+    return !!upById[id].rent && !s.rent[id] && !!next && !G.missingFor(id) && !G.staffMissing(id) &&
+      s.level >= next.level && s.coins >= G.rentCost(id);
+  };
+
+  G.rent = function (id) {
+    const s = G.state;
+    if (!G.canRent(id)) {
+      MF.audio.play('error');
+      return false;
+    }
+    spend(G.rentCost(id));
+    s.up[id]++;
+    s.rent[id] = s.time + C.rentLength;
+    if (id === 'hands') s.hands.push(Object.assign(freshHire(), { rented: true }));
+    refreshFarm();
+    MF.audio.play('buy');
+    G.save();
+    return true;
+  };
+
+  function endRent(id) {
+    const s = G.state;
+    delete s.rent[id];
+    s.up[id]--;
+    if (id === 'hands') s.hands = s.hands.filter(function (hand) { return !hand.rented; });
+    MF.render.hover = null;
+    MF.render.placing = null;
+    refreshFarm();
+    MF.ui.toast(MF.t('toast.rentEnd', { name: MF.t('up.' + id + '.name') }), 'bag');
+    G.save();
+  }
+
+  function updateRent() {
+    const s = G.state;
+    Object.keys(s.rent).forEach(function (id) {
+      if (s.time >= s.rent[id]) endRent(id);
+    });
+  }
 
   function bookPoster(group) {
     const s = G.state;
@@ -1966,6 +2036,7 @@
     const s = G.state;
     s.time += dt;
     s.stats.played += dt;
+    updateRent();
     updateDaily();
     updateManager();
     updateInsider();
@@ -2005,6 +2076,7 @@
         const base = freshState();
         s = Object.assign(base, data);
         s.up = Object.assign(freshState().up, data.up);
+        s.rent = Object.assign({}, data.rent);
         s.policy = Object.assign(freshPolicy(), data.policy);
         s.settings = Object.assign(defaultSettings(), data.settings);
         s.stats = Object.assign(freshStats(), data.stats);
@@ -2050,6 +2122,7 @@
     G.save();
   };
 
+  G.ownedLevel = ownedLevel;
   G.fieldSize = fieldSize;
   G.plotPos = plotPos;
   G.zoneAt = zoneAt;
