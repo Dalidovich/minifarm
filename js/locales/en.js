@@ -55,6 +55,8 @@ MF.locales.en = {
   'tip.gift': 'A gift from the cat',
   'tip.pond': 'Toss a coin',
   'tip.pondBusy': 'The duck is diving…',
+  'tip.hand': 'Field hand: {name}',
+  'tip.handHint': 'click to change the crop or the plot',
   'info.pollen': 'pollinated by bees',
 
   'msg.noCoins': 'Not enough coins',
@@ -87,6 +89,7 @@ MF.locales.en = {
   'hint.wait': 'Nice! Now wait for it to grow…',
   'hint.harvest': 'It is ripe! Click to harvest.',
   'hint.drag': 'Tip: hold the mouse button and drag across the beds — the farmer will do them one by one. Soil dries out, keep it watered.',
+  'hint.place': 'Point at the field and click to place the field hand. Right click turns the plot. Click off the field to cancel.',
   'hint.shop': 'You have saved up some coins. Take a look at the shop!',
 
   'shop.buy': 'Buy',
@@ -104,6 +107,9 @@ MF.locales.en = {
   'up.fert.desc': 'Everything grows faster.',
   'up.sprinkler.name': 'Sprinklers',
   'up.sprinkler.desc': 'The field waters itself. Forever.',
+  'up.hands.name': 'Field hand',
+  'up.hands.name2': 'One more field hand',
+  'up.hands.desc': 'Sows, waters and harvests a plot of 4 beds on their own.',
   'up.coop.name': 'Chicken coop',
   'up.coop.name2': 'One more chicken',
   'up.coop.desc': 'Chickens lay eggs. Just pick them up.',
@@ -152,6 +158,16 @@ MF.locales.en = {
   'barn.forOrders': 'orders need: {n}',
   'barn.all': 'All',
   'barn.sellAll': 'Sell everything',
+
+  'hands': 'Field hands',
+  'hands.name': 'Field hand {n}',
+  'hands.zone': 'plot {w}×{h}',
+  'hands.idle': 'needs a plot',
+  'hands.place': 'Place',
+  'hands.move': 'Move',
+  'hands.manage': 'Plots',
+  'hands.note': 'A field hand tills, sows the chosen crop, waters and harvests. Seeds are bought with your coins.',
+  'hands.empty': 'No field hands yet. Hire them in the shop.',
 
   'relics.cost': 'Coin toss:',
   'relics.chance': 'Find chance: {pct}%',

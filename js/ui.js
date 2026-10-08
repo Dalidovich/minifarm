@@ -16,6 +16,7 @@
   let refreshTimer = 0;
   let modalKind = null;
   let resetArmed = false;
+  let placing = null;
   const cache = {};
 
   function $(id) { return document.getElementById(id); }
@@ -150,11 +151,13 @@
         action = '<button class="btn green buy' + (s.coins < next.cost ? ' poor' : '') + '" data-buy="' + u.id + '">' +
           ico('coin', 'tiny') + next.cost + '</button>';
       }
+      const manage = u.id === 'hands' && s.hands.length;
+      if (manage) action += '<button class="btn" data-open="hands">' + t('hands.manage') + '</button>';
       return '<div class="item' + (!next ? ' maxed' : '') + '">' +
         '<div class="i-icon">' + img(S.shopIcons[u.id]) + '</div>' +
         '<div class="i-text"><div class="i-name">' + t(nameKey) + '</div><div class="pips">' + pips + '</div>' +
         '<div class="i-desc">' + t('up.' + u.id + '.desc') + '</div></div>' +
-        '<div class="i-act">' + action + '</div></div>';
+        '<div class="i-act' + (manage ? ' sell' : '') + '">' + action + '</div></div>';
     }).join('');
     return '<div class="p-head"><span>' + t('shop') + '</span><span class="p-coins">' + ico('coin') + s.coins +
       '</span><button class="p-x" data-close>×</button></div><div class="p-list">' + items + '</div>';
@@ -185,6 +188,29 @@
       '<span class="p-coins">' + ico('coin') + s.coins + '</span><button class="p-x" data-close>×</button></div>' +
       '<div class="p-list"><div class="barn-facts"><span>' + t(goods.length ? 'barn.note' : 'barn.empty') + '</span>' + sellAll + '</div>' +
       goods.map(stockHtml).join('') + '</div>';
+  }
+
+  function handHtml(hand, i) {
+    const s = G.state;
+    const shape = hand.zone ? C.handShapes[hand.zone.shape] : null;
+    const crops = C.crops.filter(function (crop) { return crop.level <= s.level; }).map(function (crop) {
+      return '<button class="pick' + (hand.crop === crop.id ? ' sel' : '') + '" data-hand="' + i + '" data-pick="' + crop.id +
+        '" title="' + t('crop.' + crop.id) + '">' + ico(crop.id) + '</button>';
+    }).join('');
+    return '<div class="item hand' + (shape ? '' : ' missing') + '">' +
+      '<div class="i-icon">' + img(S.shopIcons.hands) + '</div>' +
+      '<div class="i-text"><div class="i-name">' + t('hands.name', { n: i + 1 }) + ' · ' +
+      (shape ? t('hands.zone', { w: shape[0], h: shape[1] }) : t('hands.idle')) + '</div>' +
+      '<div class="crops">' + crops + '</div></div>' +
+      '<div class="i-act"><button class="btn' + (shape ? '' : ' green') + '" data-place="' + i + '">' +
+      t(shape ? 'hands.move' : 'hands.place') + '</button></div></div>';
+  }
+
+  function handsHtml() {
+    const hands = G.state.hands;
+    return '<div class="p-head"><span>' + t('hands') + '</span><button class="p-x" data-close>×</button></div>' +
+      '<div class="p-list"><div class="barn-facts"><span>' + t(hands.length ? 'hands.note' : 'hands.empty') + '</span></div>' +
+      hands.map(handHtml).join('') + '</div>';
   }
 
   function relicHtml(relic) {
@@ -302,7 +328,7 @@
     const list = el.panel.querySelector('.p-list');
     const scroll = list ? list.scrollTop : 0;
     const before = cache.panel;
-    const html = { shop: shopHtml, barn: barnHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml };
+    const html = { shop: shopHtml, barn: barnHtml, hands: handsHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml };
     setHtml('panel', el.panel, html[modalKind]());
     if (before !== cache.panel) {
       const fresh = el.panel.querySelector('.p-list');
@@ -311,6 +337,7 @@
   }
 
   function openModal(kind) {
+    placing = null;
     modalKind = kind;
     resetArmed = false;
     delete cache.panel;
@@ -328,6 +355,25 @@
     el.modal.classList.add('hidden');
   }
 
+  function startPlacing(index) {
+    const zone = G.state.hands[index].zone;
+    closeModal();
+    placing = { index: index, shape: zone ? zone.shape : 0 };
+    MF.audio.play('click');
+    U.refresh();
+  }
+
+  function placeClick(e) {
+    if (e.button === 2) {
+      placing.shape = G.nextShape(placing.shape);
+      MF.audio.play('click');
+      return;
+    }
+    if (e.button !== 0) return;
+    const zone = G.zoneAt(mouse.x, mouse.y, placing.shape);
+    if (!zone || G.placeHand(placing.index, zone)) placing = null;
+  }
+
   function onPanelClick(e) {
     const target = e.target.closest('button');
     if (!target) return;
@@ -336,8 +382,15 @@
       return closeModal();
     }
     if (target.dataset.buy) {
-      G.buy(target.dataset.buy);
+      const bought = G.buy(target.dataset.buy);
       cache.hotbar = null;
+      if (bought && target.dataset.buy === 'hands') return startPlacing(G.state.hands.length - 1);
+      return renderModal();
+    }
+    if (target.dataset.open) return openModal(target.dataset.open);
+    if (target.dataset.place) return startPlacing(Number(target.dataset.place));
+    if (target.dataset.pick) {
+      G.setHandCrop(Number(target.dataset.hand), target.dataset.pick);
       return renderModal();
     }
     if (target.dataset.sell) {
@@ -412,6 +465,9 @@
     if (p.type === 'hat') return t('tip.hat');
     if (p.type === 'cat') return t('tip.cat');
     if (p.type === 'gift') return t('tip.gift');
+    if (p.type === 'hand') {
+      return t('tip.hand', { name: t('crop.' + s.hands[p.index].crop) }) + '<br><small>' + t('tip.handHint') + '</small>';
+    }
     if (p.type === 'relic') {
       const relic = C.relics.filter(function (item) { return item.id === p.id; })[0];
       return t('relic.' + p.id) + '<br><small>' + G.perkText(relic) + '</small>';
@@ -442,10 +498,19 @@
   }
 
   function refreshHover() {
+    MF.render.placing = null;
     if (!mouse.inside || modalKind) {
       MF.render.hover = null;
       el.tooltip.classList.add('hidden');
       el.canvas.style.cursor = 'default';
+      return;
+    }
+    if (placing) {
+      const zone = G.zoneAt(mouse.x, mouse.y, placing.shape);
+      MF.render.hover = null;
+      MF.render.placing = { index: placing.index, zone: zone, ok: !!zone && G.zoneFree(zone, placing.index) };
+      el.tooltip.classList.add('hidden');
+      el.canvas.style.cursor = zone ? 'pointer' : 'default';
       return;
     }
     const p = G.probe(mouse.x, mouse.y);
@@ -488,7 +553,7 @@
   }
 
   function refreshHint() {
-    const key = G.hintKey();
+    const key = placing ? 'hint.place' : G.hintKey();
     el.hint.classList.toggle('hidden', !key || !!modalKind);
     if (key) setHtml('hint', el.hint, t(key));
   }
@@ -542,9 +607,13 @@
     el.canvas = $('game');
 
     el.canvas.addEventListener('mousedown', function (e) {
-      if (e.button !== 0) return;
       MF.audio.unlock();
       trackMouse(e);
+      if (placing) {
+        placeClick(e);
+        return U.refresh();
+      }
+      if (e.button !== 0) return;
       mouse.down = true;
       stroke = new Set();
       G.command(G.probe(mouse.x, mouse.y), stroke, false, mouse.x, mouse.y);
@@ -552,7 +621,7 @@
     });
     el.canvas.addEventListener('mousemove', function (e) {
       trackMouse(e);
-      if (mouse.down) G.command(G.probe(mouse.x, mouse.y), stroke, true, mouse.x, mouse.y);
+      if (mouse.down && !placing) G.command(G.probe(mouse.x, mouse.y), stroke, true, mouse.x, mouse.y);
       refreshHover();
     });
     el.canvas.addEventListener('mouseleave', function () {
@@ -575,7 +644,10 @@
     });
     el.panel.addEventListener('click', onPanelClick);
     window.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeModal();
+      if (e.key !== 'Escape') return;
+      placing = null;
+      closeModal();
+      U.refresh();
     });
     window.addEventListener('resize', layout);
 

@@ -62,6 +62,7 @@
       trees: [],
       orders: [{ wait: 45 }, { wait: 150 }, { wait: 300 }],
       stock: {},
+      hands: [],
       rain: 0,
       rainIn: 420,
       daily: null,
@@ -151,6 +152,40 @@
 
   function plotPos(i) {
     return { x: C.field.x + (i % C.field.cols) * C.tile, y: C.field.y + Math.floor(i / C.field.cols) * C.tile };
+  }
+
+  function shapeFits(shape) {
+    const size = fieldSize();
+    return C.handShapes[shape][0] <= size[0] && C.handShapes[shape][1] <= size[1];
+  }
+
+  function zoneCells(zone) {
+    const shape = C.handShapes[zone.shape];
+    const cells = [];
+    for (let r = 0; r < shape[1]; r++) {
+      for (let c = 0; c < shape[0]; c++) cells.push((zone.row + r) * C.field.cols + zone.col + c);
+    }
+    return cells;
+  }
+
+  function zoneAt(x, y, shape) {
+    const size = fieldSize();
+    const dims = C.handShapes[shape];
+    const col = Math.floor((x - C.field.x) / C.tile);
+    const row = Math.floor((y - C.field.y) / C.tile);
+    if (!isUnlocked(col, row) || !shapeFits(shape)) return null;
+    return {
+      col: Math.max(0, Math.min(size[0] - dims[0], col - Math.floor((dims[0] - 1) / 2))),
+      row: Math.max(0, Math.min(size[1] - dims[1], row - Math.floor((dims[1] - 1) / 2))),
+      shape: shape
+    };
+  }
+
+  function zoneFree(zone, index) {
+    const cells = zoneCells(zone);
+    return G.state.hands.every(function (hand, i) {
+      return i === index || !hand.zone || !zoneCells(hand.zone).some(function (cell) { return cells.indexOf(cell) >= 0; });
+    });
   }
 
   function seedCost(crop) {
@@ -364,6 +399,10 @@
     if (s.gift && Math.abs(x - C.catGift.spot.x) <= 7 && Math.abs(y - (C.catGift.spot.y - 5)) <= 7) return { type: 'gift' };
     if (s.hat && Math.abs(x - s.hat.x) <= 7 && Math.abs(y - (s.hat.y - 3)) <= 5) return { type: 'hat' };
     if (G.cat && Math.abs(x - G.cat.x) <= 7 && Math.abs(y - (G.cat.y - 4)) <= 6) return { type: 'cat' };
+    for (let i = 0; i < G.workers.length; i++) {
+      const w = G.workers[i];
+      if (w.hand && Math.abs(x - w.x) <= 5 && y >= w.y - 18 && y <= w.y) return { type: 'hand', index: s.hands.indexOf(w.hand) };
+    }
     for (let i = 0; i < s.trees.length; i++) {
       const spot = C.treeSpots[i];
       if (x >= spot[0] - 14 && x < spot[0] + 14 && y >= spot[1] - 40 && y < spot[1]) return { type: 'tree', index: i };
@@ -388,7 +427,7 @@
     return null;
   };
 
-  function applyPlots(p, stroke) {
+  function applyPlots(p, stroke, hand) {
     const s = G.state;
     const center = plotPos(p.index);
     const cx = center.x + 8;
@@ -409,7 +448,7 @@
         s.stats.tilled++;
         MF.render.burst(pos.x + 8, pos.y + 10, ['#9a6b3f', '#b98654', '#7dbd57'], 6);
       } else if (p.action === 'plant') {
-        const crop = cropById[s.selected];
+        const crop = cropById[hand ? hand.crop : s.selected];
         const cost = seedCost(crop);
         if (s.coins < cost) { failed = 'msg.noCoins'; break; }
         spend(cost);
@@ -420,8 +459,10 @@
         plot.growth = 0;
         MF.render.burst(pos.x + 8, pos.y + 10, ['#f2e2b0', '#9a6b3f'], 3);
       } else if (p.action === 'water') {
-        if (s.water <= 0) break;
-        s.water--;
+        if (!hand) {
+          if (s.water <= 0) break;
+          s.water--;
+        }
         s.stats.watered++;
         plot.wet = wetDuration();
         MF.render.burst(pos.x + 8, pos.y + 6, ['#8fd3f4', '#5bb4e5', '#c9ecfb'], 7);
@@ -451,13 +492,13 @@
       done++;
     }
     if (done) {
-      MF.audio.play(p.action);
+      if (!hand) MF.audio.play(p.action);
       showHaul(stockTotal() - before, gained, cx, cy);
       if (gained) MF.audio.play(lucky ? 'lucky' : 'coin');
       if (spent) MF.ui.float(cx, cy, '-' + spent, 'spend');
       advanceTutorial(p.action);
     }
-    if (failed) {
+    if (failed && !hand) {
       warn(failed, cx, cy);
       G.queue = G.queue.filter(function (task) {
         return task.type !== 'plot' || plotAction(s.plots[task.index]) !== 'plant';
@@ -979,8 +1020,33 @@
     };
   }
 
+  function freshHand(hand) {
+    const pos = plotPos(zoneCells(hand.zone)[0]);
+    const w = freshWorker({ id: 'hand', home: { x: pos.x + 8, y: pos.y + 15 } });
+    w.hand = hand;
+    return w;
+  }
+
+  function handTasks(hand) {
+    const s = G.state;
+    const tasks = [];
+    zoneCells(hand.zone).forEach(function (i) {
+      const action = plotAction(s.plots[i]);
+      if (!action || (action === 'plant' && s.coins < seedCost(cropById[hand.crop]))) return;
+      const pos = plotPos(i);
+      tasks.push({ type: 'plot', index: i, x: pos.x + 8, y: pos.y + 15 });
+    });
+    return tasks;
+  }
+
+  function workerTool(task) {
+    if (task.type === 'plot') return TOOL_BY_ACTION[plotAction(G.state.plots[task.index])];
+    return task.type === 'egg' ? 'grab' : null;
+  }
+
   function workerTasks(w) {
     const s = G.state;
+    if (w.hand) return handTasks(w.hand);
     if (w.id === 'henhand') {
       return s.eggs.map(function (egg) { return { type: 'egg', egg: egg, x: egg.x, y: egg.y }; });
     }
@@ -1018,9 +1084,12 @@
     w.rest = rest;
   }
 
-  function workerCollect(task) {
+  function workerCollect(w) {
+    const task = w.task;
     if (!taskValid(task)) return;
-    if (task.type === 'tree') pickApples(task.index);
+    if (task.type === 'plot') {
+      applyPlots({ index: task.index, action: plotAction(G.state.plots[task.index]), targets: [task.index] }, new Set(), w.hand);
+    } else if (task.type === 'tree') pickApples(task.index);
     else collectEgg(G.state.eggs.indexOf(task.egg));
   }
 
@@ -1029,9 +1098,9 @@
       w.actT += dt;
       if (!w.hit && w.actT >= C.actHit) {
         w.hit = true;
-        workerCollect(w.task);
+        workerCollect(w);
       }
-      if (w.actT >= C.actTime) restWorker(w, C.workerRest);
+      if (w.actT >= C.actTime) restWorker(w, w.hand ? C.handRest : C.workerRest);
       return;
     }
     if (w.state === 'walk') {
@@ -1040,7 +1109,7 @@
       if (w.path.length) return;
       if (w.stand.dir) w.dir = w.stand.dir;
       if (!w.task || !taskValid(w.task)) return restWorker(w, 0);
-      w.tool = w.task.type === 'egg' ? 'grab' : null;
+      w.tool = workerTool(w.task);
       w.state = 'act';
       w.actT = 0;
       w.hit = false;
@@ -1051,6 +1120,7 @@
     if (w.rest > 0) return;
     const task = nearestTask(w);
     if (task) return sendWorker(w, task, standFor(task, w));
+    if (w.hand) return;
     if (Math.abs(w.x - w.home.x) > 1 || Math.abs(w.y - w.home.y) > 1) sendWorker(w, null, { x: w.home.x, y: w.home.y, dir: 'down' });
   }
 
@@ -1089,6 +1159,7 @@
     if (p.type === 'hat') return returnHat();
     if (p.type === 'cat') return petCat();
     if (p.type === 'barn') return MF.ui.open('barn');
+    if (p.type === 'hand') return MF.ui.open('hands');
     if (p.type === 'gift') {
       if (!queued('gift')) enqueue({ type: 'gift' });
       return;
@@ -1134,6 +1205,7 @@
     s.up[id]++;
     if (id === 'can') s.water = canCapacity();
     if (id === 'trees') s.trees.push({ apples: 0, t: C.appleInterval });
+    if (id === 'hands') s.hands.push({ zone: null, crop: s.selected });
     if (id === 'barn' && s.up.barn === 1) {
       fitOrders();
       MF.ui.toast(MF.t('toast.barn'), 'crate');
@@ -1158,6 +1230,38 @@
     if (!crop || crop.level > G.state.level) return;
     G.state.selected = id;
     MF.audio.play('click');
+  };
+
+  G.nextShape = function (shape) {
+    for (let n = 1; n < C.handShapes.length; n++) {
+      const next = (shape + n) % C.handShapes.length;
+      if (shapeFits(next)) return next;
+    }
+    return shape;
+  };
+
+  G.placeHand = function (index, zone) {
+    const hand = G.state.hands[index];
+    if (!zoneFree(zone, index)) {
+      MF.audio.play('error');
+      return false;
+    }
+    hand.zone = zone;
+    syncAnimals();
+    const worker = G.workers.filter(function (w) { return w.hand === hand; })[0];
+    if (worker.state !== 'act') restWorker(worker, 0);
+    MF.render.burst(worker.x, worker.y - 8, ['#fff7e6', '#f7d04a', '#a4de6a'], 8);
+    MF.audio.play('plant');
+    G.save();
+    return true;
+  };
+
+  G.setHandCrop = function (index, id) {
+    const crop = cropById[id];
+    if (!crop || crop.level > G.state.level) return;
+    G.state.hands[index].crop = id;
+    MF.audio.play('click');
+    G.save();
   };
 
   G.skipOrder = function (index) {
@@ -1250,9 +1354,12 @@
     const bees = s.up.flowers ? C.bees.count : 0;
     while (G.bees.length < bees) G.bees.push(freshBee());
     G.bees.length = bees;
+    const hands = s.hands.filter(function (hand) { return hand.zone; }).map(function (hand) {
+      return G.workers.filter(function (w) { return w.hand === hand; })[0] || freshHand(hand);
+    });
     G.workers = C.workers.filter(function (cfg) { return s.up[cfg.id]; }).map(function (cfg) {
       return G.workers.filter(function (w) { return w.id === cfg.id; })[0] || freshWorker(cfg);
-    });
+    }).concat(hands);
   }
 
   function beeSpot() {
@@ -1632,6 +1739,8 @@
 
   G.fieldSize = fieldSize;
   G.plotPos = plotPos;
+  G.zoneAt = zoneAt;
+  G.zoneFree = zoneFree;
   G.canCapacity = canCapacity;
   G.wetDuration = wetDuration;
   G.priceOf = priceOf;
