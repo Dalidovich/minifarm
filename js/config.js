@@ -5,7 +5,6 @@ MF.config = {
   viewH: 270,
   tile: 16,
   dayLength: 300,
-  offlineCap: [7200, 14400, 28800],
   startCoins: 20,
   field: { x: 112, y: 80, cols: 8, rows: 5, tiers: [[3, 2], [4, 3], [5, 4], [6, 5], [8, 5]] },
   house: { x: 17, y: 20, w: 50, h: 58 },
@@ -103,7 +102,7 @@ MF.config = {
     { id: 'pickaxe', set: 'games', bonus: 'luck', value: 0.02, spot: [162, 180] },
     { id: 'tetromino', set: 'games', bonus: 'orders', value: 0.1, spot: [194, 180] },
     { id: 'muncher', set: 'games', bonus: 'eggs', value: 0.1, spot: [210, 180] },
-    { id: 'bonfire', set: 'games', bonus: 'offline', value: 0.15, spot: [226, 180] },
+    { id: 'bonfire', set: 'games', bonus: 'apples', value: 0.1, spot: [226, 180] },
     { id: 'invader', set: 'games', bonus: 'daily', value: 0.1, spot: [242, 180] }
   ],
   crops: [
@@ -157,7 +156,6 @@ MF.config = {
     { id: 'picker', requires: 'trees', levels: [{ cost: 2500, level: 6 }] },
     { id: 'house', levels: [{ cost: 2500, level: 5 }, { cost: 20000, level: 8 }] },
     { id: 'clover', levels: [{ cost: 200, level: 2 }, { cost: 1500, level: 4 }, { cost: 6000, level: 6 }] },
-    { id: 'hammock', levels: [{ cost: 400, level: 3 }, { cost: 2500, level: 6 }] },
     { id: 'almanac', levels: [{ cost: 300, level: 3 }] },
     { id: 'flowers', levels: [{ cost: 100, level: 1 }] },
     { id: 'scarecrow', levels: [{ cost: 100, level: 2 }] },

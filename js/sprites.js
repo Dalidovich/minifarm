@@ -1494,7 +1494,6 @@
     henhand: S.workers.henhand.down.idle[0],
     shears: S.icons.shears,
     picker: S.workers.picker.down.idle[0],
-    hammock: S.icons.hammock,
     almanac: S.icons.almanac,
     ducks: duckRight[0],
     coop: whiteRight[0],

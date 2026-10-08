@@ -32,6 +32,7 @@
   const SHOVEL = 'shovel';
   const POLICY_LEVEL = 3;
   const PRODUCT_SOURCE = { egg: 'coop', apple: 'trees' };
+  const HAMMOCK_REFUND = [0, 400, 2900];
 
   function rand(a, b) { return a + Math.random() * (b - a); }
   function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
@@ -83,7 +84,6 @@
       tut: 0,
       tutTimer: 0,
       completed: false,
-      savedAt: 0,
       settings: defaultSettings()
     };
   }
@@ -110,9 +110,8 @@
     const phase = (G.state.time % C.dayLength) / C.dayLength;
     return phase >= C.night[0] && phase < C.night[1];
   }
-  function nightBoost(quiet) {
+  function nightBoost() {
     if (!G.state.up.lanterns) return 1;
-    if (quiet) return 1 + (C.nightGrow - 1) * (C.night[1] - C.night[0]);
     return isNight() ? C.nightGrow : 1;
   }
   function growDuration(amount, crop) {
@@ -141,7 +140,6 @@
     const poster = G.state.poster;
     return poster && poster.day === day ? poster.group : null;
   }
-  function offlineCap() { return C.offlineCap[G.state.up.hammock] * (1 + perk('offline')); }
   function priceOf(item) {
     return Math.round(item.sell * C.houseBonus[G.state.up.house] * (1 + perk('price')) * (isDaily(item.id) ? dailyBonus() : 1));
   }
@@ -1590,7 +1588,7 @@
     G.fireflies.push({ bx: bx, by: by, x: bx, y: by, t: rand(0, 6), sx: rand(0.5, 1.1), sy: rand(0.6, 1.3), life: rand(cfg.life[0], cfg.life[1]) });
   }
 
-  function updateCat(dt, step, quiet) {
+  function updateCat(dt, step) {
     const s = G.state;
     const cat = G.cat;
     const spot = C.catGift.spot;
@@ -1600,13 +1598,10 @@
       s.catGiftIn -= dt;
       if (s.catGiftIn <= 0) {
         s.catGiftIn = rand(C.catGift.every[0], C.catGift.every[1]) / (1 + perk('gifts'));
-        if (quiet) s.gift = makeGift();
-        else {
-          cat.carrying = true;
-          cat.pause = 0;
-          cat.tx = spot.x;
-          cat.ty = spot.y;
-        }
+        cat.carrying = true;
+        cat.pause = 0;
+        cat.tx = spot.x;
+        cat.ty = spot.y;
       }
     }
     if (cat.carrying && Math.abs(cat.x - spot.x) < 2 && Math.abs(cat.y - spot.y) < 2) {
@@ -1685,7 +1680,7 @@
     return pick(narrowed.length ? narrowed : openCrops().filter(fresh)).id;
   }
 
-  function updateDaily(quiet) {
+  function updateDaily() {
     const s = G.state;
     const day = dayIndex();
     if (s.daily && s.daily.day === day) return;
@@ -1694,7 +1689,6 @@
     if (!crop) return;
     s.daily = { day: day, crop: crop };
     if (s.poster && s.poster.day <= day) s.poster = null;
-    if (quiet) return;
     MF.ui.toast(MF.t('toast.daily', { name: MF.t('crop.' + crop), pct: Math.round((dailyBonus() - 1) * 100) }), crop);
   }
 
@@ -1705,22 +1699,21 @@
     runManager();
   }
 
-  function updateInsider(quiet) {
+  function updateInsider() {
     const s = G.state;
     if (!s.up.insider || !s.daily || s.daily.next) return;
     if ((s.time % C.dayLength) / C.dayLength < C.insiderPhase) return;
     const next = pickDaily(s.daily.crop, posterGroup(dayIndex() + 1));
     if (!next) return;
     s.daily.next = next;
-    if (quiet) return;
     MF.ui.toast(MF.t('toast.insider', { name: MF.t('crop.' + next) }), 'insider');
   }
 
-  function updatePlots(dt, quiet) {
+  function updatePlots(dt) {
     const s = G.state;
     const size = fieldSize();
     const duration = wetDuration();
-    const night = nightBoost(quiet);
+    const night = nightBoost();
     const soaked = s.up.sprinkler || s.rain > 0;
     for (let row = 0; row < size[1]; row++) {
       for (let col = 0; col < size[0]; col++) {
@@ -1733,7 +1726,7 @@
             plot.growth += (soaked ? dt : Math.min(dt, plot.wet)) * growSpeed(plot.crop) * night;
             if (plot.growth >= time) {
               plot.growth = time;
-              if (!quiet) ripened(i);
+              ripened(i);
             }
           }
         }
@@ -1752,32 +1745,27 @@
     }
   }
 
-  function updateAnimals(dt, quiet) {
+  function updateAnimals(dt) {
     const s = G.state;
     const step = Math.min(dt, 0.1);
     G.chickens.forEach(function (ch) {
       ch.eggT -= dt;
       while (ch.eggT <= 0) {
         ch.eggT += (C.eggInterval / C.feedSpeed[s.up.feed] / (1 + perk('eggs'))) * rand(0.85, 1.15);
-        if (s.eggs.length < G.chickens.length * 2) {
-          const spot = quiet ? penPoint() : ch;
-          s.eggs.push({ x: Math.round(spot.x), y: Math.round(spot.y) });
-        }
+        if (s.eggs.length < G.chickens.length * 2) s.eggs.push({ x: Math.round(ch.x), y: Math.round(ch.y) });
       }
       moveWalker(ch, step, 12, penPoint, 0.8, 4);
     });
     G.ducks.forEach(function (duck) { moveWalker(duck, step, 5, duckPoint, 2, 8); });
     G.ducklings.forEach(function (duckling, i) { followWalker(duckling, i ? G.ducklings[i - 1] : G.ducks[0], step, 9, 7); });
-    updateCat(dt, step, quiet);
-    if (!quiet) {
-      const awake = !isNight() && s.rain <= 0;
-      G.bees.forEach(function (bee) { updateBee(bee, dt, awake); });
-      updateFireflies(dt);
-    }
+    updateCat(dt, step);
+    const awake = !isNight() && s.rain <= 0;
+    G.bees.forEach(function (bee) { updateBee(bee, dt, awake); });
+    updateFireflies(dt);
     s.trees.forEach(function (tree) {
       tree.t -= dt;
       while (tree.t <= 0) {
-        tree.t += C.appleInterval / C.shearsSpeed[s.up.shears];
+        tree.t += C.appleInterval / C.shearsSpeed[s.up.shears] / (1 + perk('apples'));
         if (tree.apples < C.maxApples) tree.apples++;
       }
     });
@@ -1794,21 +1782,18 @@
 
   G.update = function (dt) {
     const s = G.state;
-    const quiet = dt > 5;
     s.time += dt;
-    updateDaily(quiet);
+    s.stats.played += dt;
+    updateDaily();
     updateManager();
-    updateInsider(quiet);
-    if (!quiet) updateWeather(dt);
-    updatePlots(dt, quiet);
-    updateAnimals(dt, quiet);
+    updateInsider();
+    updateWeather(dt);
+    updatePlots(dt);
+    updateAnimals(dt);
     updateHat(dt);
     updatePond(dt);
-    if (!quiet) {
-      s.stats.played += dt;
-      updateFarmer(dt);
-      G.workers.forEach(function (w) { updateWorker(w, dt); });
-    }
+    updateFarmer(dt);
+    G.workers.forEach(function (w) { updateWorker(w, dt); });
     updateOrders(dt);
     if (s.tut === 4) {
       s.tutTimer += dt;
@@ -1822,7 +1807,6 @@
   };
 
   G.save = function () {
-    G.state.savedAt = Date.now();
     try {
       localStorage.setItem(KEY, JSON.stringify(G.state));
     } catch (e) {
@@ -1833,7 +1817,6 @@
 
   G.load = function () {
     let s = freshState();
-    let away = 0;
     try {
       const data = JSON.parse(localStorage.getItem(KEY));
       if (data && data.version === 1) {
@@ -1842,7 +1825,9 @@
         s.up = Object.assign(freshState().up, data.up);
         s.settings = Object.assign(defaultSettings(), data.settings);
         s.stats = Object.assign(freshStats(), data.stats);
-        away = Math.max(0, (Date.now() - data.savedAt) / 1000);
+        s.coins += HAMMOCK_REFUND[s.up.hammock] || 0;
+        delete s.up.hammock;
+        delete s.savedAt;
       }
     } catch (e) {
       s = freshState();
@@ -1861,7 +1846,6 @@
     G.workers = [];
     syncAnimals();
     rebuildNav();
-    return Math.min(offlineCap(), away);
   };
 
   G.reset = function () {
@@ -1895,7 +1879,6 @@
   G.dailyBonus = dailyBonus;
   G.nextPoster = function () { return posterGroup(dayIndex() + 1); };
   G.openCrops = openCrops;
-  G.offlineCap = offlineCap;
   G.seedCost = seedCost;
   G.growTime = function (crop) { return crop.time / growSpeed(crop.id); };
   G.itemInfo = itemInfo;

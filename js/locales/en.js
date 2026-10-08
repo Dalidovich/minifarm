@@ -89,7 +89,6 @@ MF.locales.en = {
   'toast.relic': 'The duck brought up: {name}!',
   'toast.set': 'Collection complete: {name}!',
   'toast.duckling': 'A duckling hatched! Find chance is now {pct}%.',
-  'toast.welcome': 'Welcome back! The farm kept going without you.',
   'toast.done': 'The farm is complete. It is beautiful. Stay as long as you like.',
 
   'hint.dig': 'Click a patch of grass inside the frame to dig a bed.',
@@ -170,8 +169,6 @@ MF.locales.en = {
   'up.henhand.desc': 'A helper who gathers the eggs for you.',
   'up.picker.name': 'Apple picker',
   'up.picker.desc': 'A helper who picks the apples for you.',
-  'up.hammock.name': 'Hammock',
-  'up.hammock.desc': 'The farm keeps going longer while you are away.',
   'up.almanac.name': 'Almanac',
   'up.almanac.desc': 'The tooltip shows when a plant will ripen.',
   'up.ducks.name': 'Ducks',
@@ -236,7 +233,7 @@ MF.locales.en = {
   'perk.luck': 'Golden harvest chance +{pct}%',
   'perk.orders': 'Orders pay {pct}% more',
   'perk.eggs': 'Hens lay {pct}% more often',
-  'perk.offline': 'The farm works {pct}% longer while you are away',
+  'perk.apples': 'Apples ripen {pct}% faster',
   'perk.daily': 'Crop of the day sells for {pct}% more on top',
 
   'stats.farm': 'Farm',
