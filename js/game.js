@@ -30,7 +30,6 @@
   const QUEUE_LIMIT = 80;
   const TOOL_BY_ACTION = { till: 'hoe', plant: 'seed', water: 'can', harvest: 'grab', uproot: 'shovel' };
   const SHOVEL = 'shovel';
-  const POLICY_LEVEL = 3;
   const PRODUCT_SOURCE = { egg: 'coop', apple: 'trees' };
   const HAMMOCK_REFUND = [0, 400, 2900];
 
@@ -47,6 +46,12 @@
       earned: 0, spent: 0, played: 0, items: {}, tilled: 0, planted: 0, watered: 0, uprooted: 0, golden: 0, pollinated: 0,
       orders: 0, fireflies: 0, gifts: 0, pets: 0, hats: 0
     };
+  }
+
+  function freshPolicy() {
+    const policy = {};
+    C.managerPolicy.forEach(function (rule) { policy[rule.id] = rule.modes[0]; });
+    return policy;
   }
 
   function freshState() {
@@ -69,7 +74,7 @@
       orders: [{ wait: 45 }, { wait: 150 }, { wait: 300 }],
       stock: {},
       hands: [],
-      policy: {},
+      policy: freshPolicy(),
       rain: 0,
       rainIn: 420,
       daily: null,
@@ -403,28 +408,77 @@
     completeOrder(index, count * priceOf(itemInfo(o.item)));
   }
 
-  function hasPolicy() { return G.state.up.manager >= POLICY_LEVEL; }
+  function hasPolicy() { return G.state.up.manager > 0; }
+  function managesGoods() { return G.state.up.manager >= C.managerGoodsLevel; }
+  function policyRules() {
+    return C.managerPolicy.filter(function (rule) { return G.state.up.manager >= rule.level; });
+  }
+  function policyMode(id) {
+    const rule = policyRules().filter(function (item) { return item.id === id; })[0];
+    return rule ? G.state.policy[id] : null;
+  }
   function productOpen(id) { return G.state.up[PRODUCT_SOURCE[id]] > 0; }
   function policyGoods() { return Object.keys(C.products).filter(productOpen); }
-  function sellsProduct(id) { return hasPolicy() && productOpen(id) && !!G.state.policy[id]; }
+  function sellsProduct(id) { return managesGoods() && productOpen(id) && !!G.state.policy[id]; }
 
-  function manageItem(id, toastKey) {
-    const s = G.state;
-    s.orders.forEach(function (o, i) {
-      if (s.up.manager > 1 && o.item === id && orderReady(o)) deliverOrder(i);
+  function orderNeed(id) {
+    return G.state.orders.reduce(function (sum, o) { return sum + (o.item === id ? orderLeft(o) : 0); }, 0);
+  }
+
+  function deliversOrder(o) {
+    const mode = policyMode('orders');
+    if (mode === 'any') return true;
+    return mode === 'daily' && (isDaily(o.item) || sellsProduct(o.item));
+  }
+
+  function deliverOrders() {
+    G.state.orders.forEach(function (o, i) {
+      if (orderReady(o) && deliversOrder(o)) deliverOrder(i);
     });
-    if (s.orders.some(function (o) { return o.item === id; })) return;
+  }
+
+  function managerSell(id, count, toastKey) {
     const price = priceOf(itemInfo(id));
-    const sold = sellStock(id, Infinity);
+    const sold = sellStock(id, count);
     if (!sold) return;
     MF.ui.toast(MF.t(toastKey, { name: MF.t('crop.' + id), n: sold }) + ' +' + sold * price, 'coin');
     MF.audio.play('coin');
   }
 
+  function sellUnordered(id, toastKey) {
+    if (!orderNeed(id)) managerSell(id, Infinity, toastKey);
+  }
+
+  function sellSurplus(id, toastKey) {
+    managerSell(id, stockOf(id) - orderNeed(id), toastKey);
+  }
+
+  function sellDaily() {
+    const id = G.state.daily.crop;
+    const mode = policyMode('daily');
+    if (mode === 'reserve') sellUnordered(id, 'toast.manager');
+    if (mode === 'surplus') sellSurplus(id, 'toast.manager');
+    if (mode === 'all') managerSell(id, Infinity, 'toast.manager');
+  }
+
+  function cheapestSpare() {
+    const spare = C.crops.filter(function (crop) {
+      return !isDaily(crop.id) && stockOf(crop.id) > orderNeed(crop.id);
+    });
+    return spare.sort(function (a, b) { return priceOf(a) - priceOf(b); })[0];
+  }
+
+  function relieveBarn() {
+    if (policyMode('overflow') !== 'on' || stockTotal() < barnCapacity()) return;
+    const crop = cheapestSpare();
+    if (crop) sellSurplus(crop.id, 'toast.managerRoom');
+  }
+
   function runManager() {
-    const s = G.state;
-    manageItem(s.daily.crop, 'toast.manager');
-    Object.keys(C.products).filter(sellsProduct).forEach(function (id) { manageItem(id, 'toast.managerGoods'); });
+    deliverOrders();
+    sellDaily();
+    Object.keys(C.products).filter(sellsProduct).forEach(function (id) { sellUnordered(id, 'toast.managerGoods'); });
+    relieveBarn();
   }
 
   function areaTargets(index, action, dig) {
@@ -1392,8 +1446,16 @@
   };
 
   G.setPolicy = function (id, sell) {
-    if (!hasPolicy() || !C.products[id]) return;
+    if (!managesGoods() || !C.products[id]) return;
     G.state.policy[id] = sell;
+    MF.audio.play('click');
+    G.save();
+  };
+
+  G.setPolicyMode = function (id, mode) {
+    const rule = policyRules().filter(function (item) { return item.id === id; })[0];
+    if (!rule || rule.modes.indexOf(mode) < 0) return;
+    G.state.policy[id] = mode;
     MF.audio.play('click');
     G.save();
   };
@@ -1822,6 +1884,7 @@
         const base = freshState();
         s = Object.assign(base, data);
         s.up = Object.assign(freshState().up, data.up);
+        s.policy = Object.assign(freshPolicy(), data.policy);
         s.settings = Object.assign(defaultSettings(), data.settings);
         s.stats = Object.assign(freshStats(), data.stats);
         s.coins += HAMMOCK_REFUND[s.up.hammock] || 0;
@@ -1882,6 +1945,8 @@
   G.growTime = function (crop) { return crop.time / growSpeed(crop.id); };
   G.itemInfo = itemInfo;
   G.hasPolicy = hasPolicy;
+  G.managesGoods = managesGoods;
+  G.policyRules = policyRules;
   G.policyGoods = policyGoods;
   G.productOpen = productOpen;
   G.barnCapacity = barnCapacity;
