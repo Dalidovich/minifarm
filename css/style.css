@@ -776,6 +776,19 @@ img.sil {
   background: #fdf0c0;
 }
 
+.item.best {
+  background: #d9efb8;
+}
+
+.audit-sum {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .i-act.sell {
   display: flex;
   flex-direction: column;

@@ -624,6 +624,20 @@
       '.kkkkkkkkkk.',
       '............',
       '............'
+    ],
+    accountant: [
+      '............',
+      '..kkkkkkkk..',
+      '..kwwwwwwk..',
+      '..kwkkkkwk..',
+      '..kwwwwwwk..',
+      '..kwkkwywk..',
+      '..kwwwwwwk..',
+      '..kwkkwgwk..',
+      '..kwwwwwwk..',
+      '..kwkkwrwk..',
+      '..kkkkkkkk..',
+      '............'
     ]
   };
 
