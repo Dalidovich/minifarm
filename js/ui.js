@@ -18,6 +18,7 @@
   let resetArmed = false;
   let placing = null;
   let auditDay = 0;
+  let pressed = null;
   const cache = {};
 
   function $(id) { return document.getElementById(id); }
@@ -33,10 +34,50 @@
     if (node.textContent !== text) node.textContent = text;
   }
 
+  function syncAttrs(node, fresh) {
+    Array.from(node.attributes).forEach(function (attr) {
+      if (!fresh.hasAttribute(attr.name)) node.removeAttribute(attr.name);
+    });
+    Array.from(fresh.attributes).forEach(function (attr) {
+      if (node.getAttribute(attr.name) !== attr.value) node.setAttribute(attr.name, attr.value);
+    });
+  }
+
+  function morph(node, fresh) {
+    let cur = node.firstChild;
+    let next = fresh.firstChild;
+    while (next) {
+      const following = next.nextSibling;
+      if (!cur) node.appendChild(next);
+      else if (cur.nodeType !== next.nodeType || cur.nodeName !== next.nodeName) {
+        const stale = cur;
+        cur = cur.nextSibling;
+        node.replaceChild(next, stale);
+      } else {
+        if (cur.nodeType !== Node.ELEMENT_NODE) {
+          if (cur.nodeValue !== next.nodeValue) cur.nodeValue = next.nodeValue;
+        } else {
+          syncAttrs(cur, next);
+          morph(cur, next);
+        }
+        cur = cur.nextSibling;
+      }
+      next = following;
+    }
+    while (cur) {
+      const stale = cur;
+      cur = cur.nextSibling;
+      node.removeChild(stale);
+    }
+  }
+
   function setHtml(key, node, html) {
     if (cache[key] === html) return;
+    if (pressed && node.contains(pressed)) return;
     cache[key] = html;
-    node.innerHTML = html;
+    const fresh = document.createElement('template');
+    fresh.innerHTML = html;
+    morph(node, fresh.content);
   }
 
   function layout() {
@@ -480,15 +521,8 @@
     if (!modalKind) return;
     if (modalKind === 'audit' && !G.hasAudit(auditDay)) return closeModal();
     if (modalKind === 'manager' && !G.hasPolicy()) return closeModal();
-    const list = el.panel.querySelector('.p-list');
-    const scroll = list ? list.scrollTop : 0;
-    const before = cache.panel;
     const html = { shop: shopHtml, barn: barnHtml, hands: handsHtml, manager: managerHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml, audit: auditHtml };
     setHtml('panel', el.panel, html[modalKind]());
-    if (before !== cache.panel) {
-      const fresh = el.panel.querySelector('.p-list');
-      if (fresh) fresh.scrollTop = scroll;
-    }
   }
 
   function openModal(kind) {
@@ -816,7 +850,13 @@
     });
     el.canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     window.addEventListener('mouseup', function () { mouse.down = false; });
-    window.addEventListener('blur', function () { mouse.down = false; });
+    window.addEventListener('blur', function () {
+      mouse.down = false;
+      pressed = null;
+    });
+    window.addEventListener('pointerdown', function (e) { pressed = e.target; }, true);
+    window.addEventListener('pointerup', function () { pressed = null; }, true);
+    window.addEventListener('pointercancel', function () { pressed = null; }, true);
 
     el.hotbar.addEventListener('click', function (e) {
       const slot = e.target.closest('[data-crop]');
