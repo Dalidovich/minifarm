@@ -134,6 +134,14 @@
     }).join('');
   }
 
+  function tierKey(id, part, lvl) {
+    const base = 'up.' + id + '.' + part;
+    for (let n = lvl + 1; n > 1; n--) {
+      if (MF.i18n.has(base + n)) return base + n;
+    }
+    return base;
+  }
+
   function shopHtml() {
     const s = G.state;
     const items = C.upgrades.map(function (u) {
@@ -141,8 +149,8 @@
       const next = u.levels[lvl];
       const missing = G.missingFor(u.id);
       const staff = G.staffMissing(u.id);
-      const nameKey = lvl > 0 && MF.i18n.has('up.' + u.id + '.name2') ? 'up.' + u.id + '.name2' : 'up.' + u.id + '.name';
-      const descKey = lvl > 0 && MF.i18n.has('up.' + u.id + '.desc2') ? 'up.' + u.id + '.desc2' : 'up.' + u.id + '.desc';
+      const nameKey = tierKey(u.id, 'name', lvl);
+      const descKey = tierKey(u.id, 'desc', lvl);
       let pips = '';
       if (u.levels.length > 1) {
         for (let i = 0; i < u.levels.length; i++) pips += '<i class="' + (i < lvl ? 'on' : '') + '"></i>';
@@ -156,8 +164,8 @@
         action = '<button class="btn green buy' + (s.coins < next.cost ? ' poor' : '') + '" data-buy="' + u.id + '">' +
           ico('coin', 'tiny') + next.cost + '</button>';
       }
-      const manage = u.id === 'hands' && s.hands.length;
-      if (manage) action += '<button class="btn" data-open="hands">' + t('hands.manage') + '</button>';
+      const manage = u.id === 'hands' ? s.hands.length > 0 : u.id === 'manager' && G.hasPolicy();
+      if (manage) action += '<button class="btn" data-open="' + u.id + '">' + t(u.id + '.manage') + '</button>';
       return '<div class="item' + (!next ? ' maxed' : '') + '">' +
         '<div class="i-icon">' + img(S.shopIcons[u.id]) + '</div>' +
         '<div class="i-text"><div class="i-name">' + t(nameKey) + '</div><div class="pips">' + pips + '</div>' +
@@ -216,6 +224,25 @@
     return '<div class="p-head"><span>' + t('hands') + '</span><button class="p-x" data-close>×</button></div>' +
       '<div class="p-list"><div class="barn-facts"><span>' + t(hands.length ? 'hands.note' : 'hands.empty') + '</span></div>' +
       hands.map(handHtml).join('') + '</div>';
+  }
+
+  function policyHtml(id) {
+    const sell = !!G.state.policy[id];
+    return '<div class="item">' +
+      '<div class="i-icon">' + ico(id) + '</div>' +
+      '<div class="i-text"><div class="i-name">' + t('crop.' + id) + ' ×' + G.stockOf(id) + '</div>' +
+      '<div class="i-desc">' + t(sell ? 'manager.sells' : 'manager.keeps') + '</div></div>' +
+      '<div class="i-act sell">' +
+      '<button class="btn' + (sell ? ' green' : '') + '" data-policy="' + id + '" data-mode="sell">' + t('manager.sell') + '</button>' +
+      '<button class="btn' + (sell ? '' : ' green') + '" data-policy="' + id + '" data-mode="keep">' + t('manager.keep') + '</button>' +
+      '</div></div>';
+  }
+
+  function managerHtml() {
+    const goods = G.policyGoods();
+    return '<div class="p-head"><span>' + t('manager') + '</span><button class="p-x" data-close>×</button></div>' +
+      '<div class="p-list"><div class="barn-facts"><span>' + t(goods.length ? 'manager.note' : 'manager.empty') + '</span></div>' +
+      goods.map(policyHtml).join('') + '</div>';
   }
 
   function relicHtml(relic) {
@@ -277,7 +304,7 @@
     ];
     const goods = C.crops.map(function (c) { return c.id; }).concat(Object.keys(C.products)).filter(function (id) {
       const crop = G.cropById[id];
-      return st.items[id] || (crop ? crop.level <= s.level : s.up[id === 'egg' ? 'coop' : 'trees'] > 0);
+      return st.items[id] || (crop ? crop.level <= s.level : G.productOpen(id));
     });
     const harvest = goods.map(function (id) { return statHtml(S.icons[id], 'crop.' + id, st.items[id] || 0); });
     const total = goods.reduce(function (sum, id) { return sum + (st.items[id] || 0); }, 0);
@@ -334,7 +361,7 @@
     const list = el.panel.querySelector('.p-list');
     const scroll = list ? list.scrollTop : 0;
     const before = cache.panel;
-    const html = { shop: shopHtml, barn: barnHtml, hands: handsHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml };
+    const html = { shop: shopHtml, barn: barnHtml, hands: handsHtml, manager: managerHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml };
     setHtml('panel', el.panel, html[modalKind]());
     if (before !== cache.panel) {
       const fresh = el.panel.querySelector('.p-list');
@@ -391,6 +418,11 @@
       const bought = G.buy(target.dataset.buy);
       cache.hotbar = null;
       if (bought && target.dataset.buy === 'hands') return startPlacing(G.state.hands.length - 1);
+      if (bought && target.dataset.buy === 'manager' && G.hasPolicy()) return openModal('manager');
+      return renderModal();
+    }
+    if (target.dataset.policy) {
+      G.setPolicy(target.dataset.policy, target.dataset.mode === 'sell');
       return renderModal();
     }
     if (target.dataset.open) return openModal(target.dataset.open);
@@ -474,6 +506,7 @@
     if (p.type === 'hand') {
       return t('tip.hand', { name: t('crop.' + s.hands[p.index].crop) }) + '<br><small>' + t('tip.handHint') + '</small>';
     }
+    if (p.type === 'manager') return t('up.manager.name') + '<br><small>' + t('tip.managerHint') + '</small>';
     if (p.type === 'relic') {
       const relic = C.relics.filter(function (item) { return item.id === p.id; })[0];
       return t('relic.' + p.id) + '<br><small>' + G.perkText(relic) + '</small>';

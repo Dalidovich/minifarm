@@ -28,6 +28,8 @@
   const QUEUE_LIMIT = 80;
   const TOOL_BY_ACTION = { till: 'hoe', plant: 'seed', water: 'can', harvest: 'grab', uproot: 'shovel' };
   const SHOVEL = 'shovel';
+  const POLICY_LEVEL = 3;
+  const PRODUCT_SOURCE = { egg: 'coop', apple: 'trees' };
 
   function rand(a, b) { return a + Math.random() * (b - a); }
   function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
@@ -64,6 +66,7 @@
       orders: [{ wait: 45 }, { wait: 150 }, { wait: 300 }],
       stock: {},
       hands: [],
+      policy: {},
       rain: 0,
       rainIn: 420,
       daily: null,
@@ -382,20 +385,30 @@
     completeOrder(index, count * priceOf(itemInfo(o.item)));
   }
 
+  function hasPolicy() { return G.state.up.manager >= POLICY_LEVEL; }
+  function productOpen(id) { return G.state.up[PRODUCT_SOURCE[id]] > 0; }
+  function policyGoods() { return Object.keys(C.products).filter(productOpen); }
+  function sellsProduct(id) { return hasPolicy() && productOpen(id) && !!G.state.policy[id]; }
+
+  function manageItem(id, toastKey) {
+    const s = G.state;
+    s.orders.forEach(function (o, i) {
+      if (s.up.manager > 1 && o.item === id && orderReady(o)) deliverOrder(i);
+    });
+    if (s.orders.some(function (o) { return o.item === id; })) return;
+    const price = priceOf(itemInfo(id));
+    const sold = sellStock(id, Infinity);
+    if (!sold) return;
+    MF.ui.toast(MF.t(toastKey, { name: MF.t('crop.' + id), n: sold }) + ' +' + sold * price, 'coin');
+    MF.audio.play('coin');
+  }
+
   function runManager() {
     const s = G.state;
-    const crop = s.daily.crop;
     if (!s.up.manager) return;
     s.daily.managed = true;
-    s.orders.forEach(function (o, i) {
-      if (s.up.manager > 1 && o.item === crop && orderReady(o)) deliverOrder(i);
-    });
-    if (s.orders.some(function (o) { return o.item === crop; })) return;
-    const price = priceOf(cropById[crop]);
-    const sold = sellStock(crop, Infinity);
-    if (!sold) return;
-    MF.ui.toast(MF.t('toast.manager', { name: MF.t('crop.' + crop), n: sold }) + ' +' + sold * price, 'coin');
-    MF.audio.play('coin');
+    manageItem(s.daily.crop, 'toast.manager');
+    Object.keys(C.products).filter(sellsProduct).forEach(function (id) { manageItem(id, 'toast.managerGoods'); });
   }
 
   function areaTargets(index, action, dig) {
@@ -438,7 +451,9 @@
     if (G.cat && Math.abs(x - G.cat.x) <= 7 && Math.abs(y - (G.cat.y - 4)) <= 6) return { type: 'cat' };
     for (let i = 0; i < G.workers.length; i++) {
       const w = G.workers[i];
-      if (w.hand && Math.abs(x - w.x) <= 5 && y >= w.y - 18 && y <= w.y) return { type: 'hand', index: s.hands.indexOf(w.hand) };
+      const hit = Math.abs(x - w.x) <= 5 && y >= w.y - 18 && y <= w.y;
+      if (hit && w.hand) return { type: 'hand', index: s.hands.indexOf(w.hand) };
+      if (hit && w.id === 'manager' && hasPolicy()) return { type: 'manager' };
     }
     for (let i = 0; i < s.trees.length; i++) {
       const spot = C.treeSpots[i];
@@ -1213,6 +1228,7 @@
     if (p.type === 'cat') return petCat();
     if (p.type === 'barn') return MF.ui.open('barn');
     if (p.type === 'hand') return MF.ui.open('hands');
+    if (p.type === 'manager') return MF.ui.open('manager');
     if (p.type === 'gift') {
       if (!queued('gift')) enqueue({ type: 'gift' });
       return;
@@ -1317,6 +1333,13 @@
     const crop = cropById[id];
     if (!crop || crop.level > G.state.level) return;
     G.state.hands[index].crop = id;
+    MF.audio.play('click');
+    G.save();
+  };
+
+  G.setPolicy = function (id, sell) {
+    if (!hasPolicy() || !C.products[id]) return;
+    G.state.policy[id] = sell;
     MF.audio.play('click');
     G.save();
   };
@@ -1815,6 +1838,9 @@
   G.seedCost = seedCost;
   G.growTime = function (crop) { return crop.time / growSpeed(crop.id); };
   G.itemInfo = itemInfo;
+  G.hasPolicy = hasPolicy;
+  G.policyGoods = policyGoods;
+  G.productOpen = productOpen;
   G.barnCapacity = barnCapacity;
   G.stockOf = stockOf;
   G.stockTotal = stockTotal;
