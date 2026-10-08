@@ -17,6 +17,7 @@
   let modalKind = null;
   let resetArmed = false;
   let placing = null;
+  let auditDay = 0;
   const cache = {};
 
   function $(id) { return document.getElementById(id); }
@@ -170,6 +171,57 @@
       '<div class="i-act sell">' + ticketActionHtml(ticket) + '</div></div>';
   }
 
+  function auditActionHtml(day, key) {
+    if (G.hasAudit(day)) return '<button class="btn" data-audit="' + day + '">' + t(key + '.open') + '</button>';
+    const cost = G.auditCost();
+    return '<button class="btn green' + (G.state.coins < cost ? ' poor' : '') + '" data-audit="' + day + '">' + t(key) + ' ' +
+      ico('coin', 'tiny') + cost + '</button>';
+  }
+
+  function accountantActionHtml() {
+    const s = G.state;
+    const today = G.dayIndex();
+    if (s.level < C.accountant.level) return '<div class="tag lock">' + t('lvlReq', { n: C.accountant.level }) + '</div>';
+    if (G.auditOpen(today + 1)) return auditActionHtml(today, 'audit.today') + auditActionHtml(today + 1, 'audit.tomorrow');
+    return auditActionHtml(today, 'audit.today') + '<div class="tag lock">' +
+      (s.up.insider ? t('audit.tomorrow.wait') : t('shop.needs', { name: t('up.insider.name') })) + '</div>';
+  }
+
+  function accountantHtml() {
+    return '<div class="item wide">' +
+      '<div class="i-icon">' + ico('accountant') + '</div>' +
+      '<div class="i-text"><div class="i-name">' + t('audit.name') + '</div>' +
+      '<div class="i-desc">' + t('audit.desc') + '</div></div>' +
+      '<div class="i-act sell">' + accountantActionHtml() + '</div></div>';
+  }
+
+  function auditRowHtml(row, i) {
+    return '<div class="item wide' + (i ? '' : ' best') + (row.daily ? ' hot' : '') + '">' +
+      '<div class="i-icon">' + ico(row.crop.id) + '</div>' +
+      '<div class="i-text"><div class="i-name">' + t('crop.' + row.crop.id) +
+      (row.daily ? ' · ' + t('daily.tip', { pct: Math.round((G.dailyBonus() - 1) * 100) }) : '') + '</div>' +
+      '<div class="i-desc">' + t('growsIn', { time: durationText(row.grow) }) + ' · ' + t('audit.harvest', { n: row.count }) + '</div></div>' +
+      '<div class="i-act audit-sum">' + ico('coin', 'tiny') + row.profit + '</div></div>';
+  }
+
+  function auditVerdict(rows) {
+    const best = rows[0];
+    const daily = rows.filter(function (row) { return row.daily; })[0];
+    const name = t('crop.' + best.crop.id);
+    if (!daily) return t('audit.best', { name: name });
+    if (daily === best) return t('audit.bestDaily', { name: name });
+    return t('audit.beatsDaily', { name: name, daily: t('crop.' + daily.crop.id), n: best.profit - daily.profit });
+  }
+
+  function auditHtml() {
+    const size = G.fieldSize();
+    const rows = G.audit(auditDay);
+    return '<div class="p-head"><span>' + t(auditDay === G.dayIndex() ? 'audit.today.open' : 'audit.tomorrow.open') + '</span>' +
+      '<button class="p-x" data-close>×</button></div>' +
+      '<div class="p-list"><div class="pond-facts">' + auditVerdict(rows) + '<br>' + t('audit.note', { n: size[0] * size[1] }) + '</div>' +
+      rows.map(auditRowHtml).join('') + '</div>';
+  }
+
   function shopHtml() {
     const s = G.state;
     const items = C.upgrades.map(function (u) {
@@ -202,7 +254,7 @@
     }).join('');
     return '<div class="p-head"><span>' + t('shop') + '</span><span class="p-coins">' + ico('coin') + s.coins +
       '</span><button class="p-x" data-close>×</button></div><div class="p-list">' +
-      statGroupHtml('tickets', '', C.tickets.map(ticketHtml)) + statGroupHtml('upgrades', '', [items]) + '</div>';
+      statGroupHtml('tickets', '', C.tickets.map(ticketHtml).concat(accountantHtml())) +statGroupHtml('upgrades', '', [items]) + '</div>';
   }
 
   function stockHtml(id) {
@@ -413,10 +465,11 @@
 
   function renderModal() {
     if (!modalKind) return;
+    if (modalKind === 'audit' && !G.hasAudit(auditDay)) return closeModal();
     const list = el.panel.querySelector('.p-list');
     const scroll = list ? list.scrollTop : 0;
     const before = cache.panel;
-    const html = { shop: shopHtml, barn: barnHtml, hands: handsHtml, manager: managerHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml };
+    const html = { shop: shopHtml, barn: barnHtml, hands: handsHtml, manager: managerHtml, relics: relicsHtml, stats: statsHtml, settings: settingsHtml, audit: auditHtml };
     setHtml('panel', el.panel, html[modalKind]());
     if (before !== cache.panel) {
       const fresh = el.panel.querySelector('.p-list');
@@ -480,6 +533,12 @@
       G.buyTicket(target.dataset.ticket, target.dataset.group);
       cache.hotbar = null;
       return renderModal();
+    }
+    if (target.dataset.audit) {
+      const day = Number(target.dataset.audit);
+      if (!G.hasAudit(day) && !G.buyAudit(day)) return renderModal();
+      auditDay = day;
+      return openModal('audit');
     }
     if (target.dataset.rule) {
       G.setPolicyMode(target.dataset.rule, target.dataset.mode);

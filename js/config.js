@@ -129,6 +129,7 @@ MF.config = {
     { id: 'request', level: 5, rate: 0.3, orders: 3 },
     { id: 'poster', level: 5, rate: 0.25 }
   ],
+  accountant: { level: 3, rate: 0.2 },
   products: {
     egg: { sell: 15, xp: 2 },
     apple: { sell: 40, xp: 4 }

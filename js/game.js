@@ -80,6 +80,7 @@
       daily: null,
       request: null,
       poster: null,
+      audits: [],
       hat: null,
       gift: null,
       catGiftIn: C.catGift.every[0],
@@ -119,10 +120,10 @@
     if (!G.state.up.lanterns) return 1;
     return isNight() ? C.nightGrow : 1;
   }
-  function growDuration(amount, crop) {
+  function growDuration(amount, crop, from) {
     const base = growSpeed(crop);
     if (!G.state.up.lanterns) return amount / base;
-    let time = G.state.time;
+    let time = from;
     let left = amount;
     while (left > 0.001) {
       const phase = (time % C.dayLength) / C.dayLength;
@@ -133,7 +134,7 @@
       time += step;
       left -= step * speed;
     }
-    return time - G.state.time;
+    return time - from;
   }
   function isDaily(id) { return !!G.state.daily && G.state.daily.crop === id; }
   function isNextDaily(id) { return !!G.state.up.insider && !!G.state.daily && G.state.daily.next === id; }
@@ -145,9 +146,10 @@
     const poster = G.state.poster;
     return poster && poster.day === day ? poster.group : null;
   }
-  function priceOf(item) {
-    return Math.round(item.sell * C.houseBonus[G.state.up.house] * (1 + perk('price')) * (isDaily(item.id) ? dailyBonus() : 1));
+  function priceFor(item, daily) {
+    return Math.round(item.sell * C.houseBonus[G.state.up.house] * (1 + perk('price')) * (daily ? dailyBonus() : 1));
   }
+  function priceOf(item) { return priceFor(item, isDaily(item.id)); }
   function itemInfo(id) { return cropById[id] || C.products[id]; }
   function barnCapacity() { return C.barnCapacity[G.state.up.barn]; }
   function stockOf(id) { return G.state.stock[id] || 0; }
@@ -210,8 +212,12 @@
     });
   }
 
+  function seedPrice(crop) {
+    return Math.max(1, Math.round(crop.cost * C.seedDiscount[G.state.up.seeds] * (1 - perk('seeds'))));
+  }
+
   function seedCost(crop) {
-    const cost = Math.max(1, Math.round(crop.cost * C.seedDiscount[G.state.up.seeds] * (1 - perk('seeds'))));
+    const cost = seedPrice(crop);
     return crop.id === C.crops[0].id && G.state.coins < cost ? 0 : cost;
   }
 
@@ -1376,11 +1382,117 @@
     MF.ui.toast(MF.t('toast.insider', { name: MF.t('crop.' + s.daily.next) }), 'insider');
   }
 
-  G.ticketCost = function (id, group) {
+  function serviceCost(rate, group) {
     const crops = openCrops(group);
     const size = fieldSize();
     const sell = crops.reduce(function (sum, c) { return sum + c.sell; }, 0) / (crops.length || 1);
-    return Math.max(5, Math.round((ticketById[id].rate * sell * size[0] * size[1]) / 5) * 5);
+    return Math.max(5, Math.round((rate * sell * size[0] * size[1]) / 5) * 5);
+  }
+
+  G.ticketCost = function (id, group) { return serviceCost(ticketById[id].rate, group); };
+
+  function hasAudit(day) { return day >= dayIndex() && G.state.audits.indexOf(day) >= 0; }
+
+  function auditCrop(day) {
+    const daily = G.state.daily;
+    if (!daily) return null;
+    if (day === daily.day) return daily.crop;
+    return (G.state.up.insider && daily.next) || null;
+  }
+
+  function auditOpen(day) { return day === dayIndex() || !!auditCrop(day); }
+
+  function crews() {
+    const s = G.state;
+    const size = fieldSize();
+    const reach = C.toolShapes[s.up.tool].length;
+    const speed = C.farmerSpeed[s.up.boots] * (1 + perk('walk'));
+    const wellX = C.well.x + C.well.w / 2 - C.field.x - (size[0] * C.tile) / 2;
+    const wellY = C.well.y + C.well.h - C.field.y - (size[1] * C.tile) / 2;
+    const wellTrip = (2 * Math.sqrt(wellX * wellX + wellY * wellY)) / speed + C.actTime;
+    const team = s.hands.filter(function (hand) { return hand.zone; }).map(function (hand) {
+      return { cells: zoneCells(hand.zone).length, reach: 1, step: C.actTime + C.handRest + C.tile / C.workerSpeed, thirst: 0.5, refill: 0 };
+    });
+    const tended = team.reduce(function (sum, crew) { return sum + crew.cells; }, 0);
+    const rest = size[0] * size[1] - tended;
+    if (rest > 0) {
+      team.push({ cells: rest, reach: reach, step: C.actTime + (C.tile * Math.min(reach, 3)) / speed, thirst: 1, refill: wellTrip / canCapacity() });
+    }
+    return team;
+  }
+
+  function crewCycle(crew, grow) {
+    const dry = !G.state.up.sprinkler;
+    const waterings = dry ? Math.ceil(grow / (wetDuration() * crew.thirst)) : 0;
+    const work = crew.cells * (((2 + waterings) * crew.step) / crew.reach + waterings * crew.refill);
+    return Math.max(grow + (dry ? 3 : 2) * crew.step, work);
+  }
+
+  function beeChance(grow) {
+    if (!G.state.up.flowers) return 0;
+    const size = fieldSize();
+    const visit = (C.bees.visit[0] + C.bees.visit[1]) / 2 + C.bees.work;
+    const daylight = 1 - (C.night[1] - C.night[0]);
+    return Math.min(1, ((C.bees.count / visit) * daylight * grow) / (size[0] * size[1]));
+  }
+
+  function harvestValue(crop, daily, grow) {
+    const count = 1 + beeChance(grow) * (C.bees.bonus - 1);
+    const luck = C.luckChance[G.state.up.clover] + perk('luck');
+    return priceFor(crop, daily) * count * (1 + luck * (C.luckBonus - 1));
+  }
+
+  function auditCrew(crew, crop, daily, from, end) {
+    const seed = seedPrice(crop);
+    let time = from;
+    let harvests = 0;
+    let profit = 0;
+    let grow = growDuration(crop.time, crop.id, time);
+    while (time + crewCycle(crew, grow) <= end) {
+      profit += harvestValue(crop, daily, grow) - seed;
+      harvests++;
+      time += crewCycle(crew, grow);
+      grow = growDuration(crop.time, crop.id, time);
+    }
+    profit += Math.min(1, (end - time) / grow) * (harvestValue(crop, false, grow) - seed);
+    return { count: harvests * crew.cells, profit: profit * crew.cells };
+  }
+
+  G.audit = function (day) {
+    const from = Math.max(G.state.time, day * C.dayLength);
+    const end = (day + 1) * C.dayLength;
+    const daily = auditCrop(day);
+    const team = crews();
+    return openCrops().map(function (crop) {
+      const row = { crop: crop, daily: crop.id === daily, grow: growDuration(crop.time, crop.id, from), count: 0, profit: 0 };
+      team.forEach(function (crew) {
+        const part = auditCrew(crew, crop, row.daily, from, end);
+        row.count += part.count;
+        row.profit += part.profit;
+      });
+      row.profit = Math.round(row.profit);
+      return row;
+    }).sort(function (a, b) { return b.profit - a.profit; });
+  };
+
+  G.auditCost = function () { return serviceCost(C.accountant.rate); };
+
+  G.canBuyAudit = function (day) {
+    const s = G.state;
+    return s.level >= C.accountant.level && auditOpen(day) && !hasAudit(day) && s.coins >= G.auditCost();
+  };
+
+  G.buyAudit = function (day) {
+    const s = G.state;
+    if (!G.canBuyAudit(day)) {
+      MF.audio.play('error');
+      return false;
+    }
+    spend(G.auditCost());
+    s.audits = s.audits.filter(function (owned) { return owned >= dayIndex(); }).concat(day);
+    MF.audio.play('buy');
+    G.save();
+    return true;
   };
 
   G.ticketBusy = function (id) {
@@ -1485,7 +1597,7 @@
   };
 
   G.ripening = function (plot) {
-    const left = growDuration(cropById[plot.crop].time - plot.growth, plot.crop);
+    const left = growDuration(cropById[plot.crop].time - plot.growth, plot.crop, G.state.time);
     return { at: G.state.time + left, watered: !!G.state.up.sprinkler || plot.wet >= left };
   };
 
@@ -1941,6 +2053,9 @@
   G.dailyBonus = dailyBonus;
   G.nextPoster = function () { return posterGroup(dayIndex() + 1); };
   G.openCrops = openCrops;
+  G.dayIndex = dayIndex;
+  G.hasAudit = hasAudit;
+  G.auditOpen = auditOpen;
   G.seedCost = seedCost;
   G.growTime = function (crop) { return crop.time / growSpeed(crop.id); };
   G.itemInfo = itemInfo;
