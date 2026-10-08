@@ -140,6 +140,7 @@
       const missing = G.missingFor(u.id);
       const staff = G.staffMissing(u.id);
       const nameKey = lvl > 0 && MF.i18n.has('up.' + u.id + '.name2') ? 'up.' + u.id + '.name2' : 'up.' + u.id + '.name';
+      const descKey = lvl > 0 && MF.i18n.has('up.' + u.id + '.desc2') ? 'up.' + u.id + '.desc2' : 'up.' + u.id + '.desc';
       let pips = '';
       if (u.levels.length > 1) {
         for (let i = 0; i < u.levels.length; i++) pips += '<i class="' + (i < lvl ? 'on' : '') + '"></i>';
@@ -158,7 +159,7 @@
       return '<div class="item' + (!next ? ' maxed' : '') + '">' +
         '<div class="i-icon">' + img(S.shopIcons[u.id]) + '</div>' +
         '<div class="i-text"><div class="i-name">' + t(nameKey) + '</div><div class="pips">' + pips + '</div>' +
-        '<div class="i-desc">' + t('up.' + u.id + '.desc') + '</div></div>' +
+        '<div class="i-desc">' + t(descKey) + '</div></div>' +
         '<div class="i-act' + (manage ? ' sell' : '') + '">' + action + '</div></div>';
     }).join('');
     return '<div class="p-head"><span>' + t('shop') + '</span><span class="p-coins">' + ico('coin') + s.coins +
