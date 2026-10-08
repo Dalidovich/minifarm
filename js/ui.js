@@ -195,11 +195,11 @@
       '<div class="i-act sell">' + accountantActionHtml() + '</div></div>';
   }
 
-  function auditRowHtml(row, i) {
+  function auditRowHtml(report, row, i) {
     return '<div class="item wide' + (i ? '' : ' best') + (row.daily ? ' hot' : '') + '">' +
-      '<div class="i-icon">' + ico(row.crop.id) + '</div>' +
-      '<div class="i-text"><div class="i-name">' + t('crop.' + row.crop.id) +
-      (row.daily ? ' · ' + t('daily.tip', { pct: Math.round((G.dailyBonus() - 1) * 100) }) : '') + '</div>' +
+      '<div class="i-icon">' + ico(row.crop) + '</div>' +
+      '<div class="i-text"><div class="i-name">' + t('crop.' + row.crop) +
+      (row.daily ? ' · ' + t('daily.tip', { pct: Math.round((report.bonus - 1) * 100) }) : '') + '</div>' +
       '<div class="i-desc">' + t('growsIn', { time: durationText(row.grow) }) + ' · ' + t('audit.harvest', { n: row.count }) + '</div></div>' +
       '<div class="i-act audit-sum">' + ico('coin', 'tiny') + row.profit + '</div></div>';
   }
@@ -207,19 +207,19 @@
   function auditVerdict(rows) {
     const best = rows[0];
     const daily = rows.filter(function (row) { return row.daily; })[0];
-    const name = t('crop.' + best.crop.id);
+    const name = t('crop.' + best.crop);
     if (!daily) return t('audit.best', { name: name });
     if (daily === best) return t('audit.bestDaily', { name: name });
-    return t('audit.beatsDaily', { name: name, daily: t('crop.' + daily.crop.id), n: best.profit - daily.profit });
+    return t('audit.beatsDaily', { name: name, daily: t('crop.' + daily.crop), n: best.profit - daily.profit });
   }
 
   function auditHtml() {
-    const size = G.fieldSize();
-    const rows = G.audit(auditDay);
+    const report = G.auditFor(auditDay);
+    const rows = report.rows;
     return '<div class="p-head"><span>' + t(auditDay === G.dayIndex() ? 'audit.today.open' : 'audit.tomorrow.open') + '</span>' +
       '<button class="p-x" data-close>×</button></div>' +
-      '<div class="p-list"><div class="pond-facts">' + auditVerdict(rows) + '<br>' + t('audit.note', { n: size[0] * size[1] }) + '</div>' +
-      rows.map(auditRowHtml).join('') + '</div>';
+      '<div class="p-list"><div class="pond-facts">' + auditVerdict(rows) + '<br>' + t('audit.note', { n: report.plots }) + '</div>' +
+      rows.map(function (row, i) { return auditRowHtml(report, row, i); }).join('') + '</div>';
   }
 
   function shopHtml() {
