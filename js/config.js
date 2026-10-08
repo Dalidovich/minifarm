@@ -26,10 +26,12 @@ MF.config = {
   workerSpeed: 45,
   workerRest: 1.5,
   handRest: 0.5,
+  strollRest: [2, 6],
   handShapes: [[2, 2], [4, 1], [1, 4]],
   workers: [
     { id: 'henhand', home: { x: 330, y: 126 } },
-    { id: 'picker', home: { x: 304, y: 182 } }
+    { id: 'picker', home: { x: 304, y: 182 } },
+    { id: 'manager', home: { x: 176, y: 62 }, stroll: { x: 128, y: 58, w: 100, h: 14 } }
   ],
   actTime: 0.4,
   actHit: 0.18,
@@ -137,6 +139,7 @@ MF.config = {
     { id: 'market', levels: [{ cost: 350, level: 3 }, { cost: 1800, level: 5 }, { cost: 7000, level: 7 }] },
     { id: 'sign', levels: [{ cost: 500, level: 3 }, { cost: 3500, level: 6 }] },
     { id: 'insider', levels: [{ cost: 800, level: 4 }] },
+    { id: 'manager', requires: 'barn', staff: 3, levels: [{ cost: 1500, level: 3 }] },
     { id: 'coop', levels: [{ cost: 300, level: 3 }, { cost: 400, level: 3 }, { cost: 700, level: 4 }, { cost: 1200, level: 5 }] },
     { id: 'feed', requires: 'coop', levels: [{ cost: 500, level: 4 }, { cost: 2500, level: 6 }] },
     { id: 'henhand', requires: 'coop', levels: [{ cost: 1500, level: 5 }] },

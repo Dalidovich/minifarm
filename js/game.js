@@ -144,6 +144,10 @@
   function orderLeft(o) { return o.need - o.have; }
   function orderReady(o) { return !!o.item && !!G.state.up.barn && stockOf(o.item) >= orderLeft(o); }
   function orderHave(o) { return G.state.up.barn ? Math.min(o.need, o.have + stockOf(o.item)) : o.have; }
+  function staffCount() {
+    const s = G.state;
+    return s.hands.length + C.workers.filter(function (cfg) { return !cfg.stroll && s.up[cfg.id]; }).length;
+  }
 
   function isUnlocked(col, row) {
     const size = fieldSize();
@@ -359,6 +363,28 @@
     takeStock(id, sold);
     gain(sold * priceOf(itemInfo(id)));
     return sold;
+  }
+
+  function deliverOrder(index) {
+    const o = G.state.orders[index];
+    const count = orderLeft(o);
+    takeStock(o.item, count);
+    completeOrder(index, count * priceOf(itemInfo(o.item)));
+  }
+
+  function runManager() {
+    const s = G.state;
+    const crop = s.daily.crop;
+    if (!s.up.manager) return;
+    s.orders.forEach(function (o, i) {
+      if (o.item === crop && orderReady(o)) deliverOrder(i);
+    });
+    if (s.orders.some(function (o) { return o.item === crop; })) return;
+    const price = priceOf(cropById[crop]);
+    const sold = sellStock(crop, Infinity);
+    if (!sold) return;
+    MF.ui.toast(MF.t('toast.manager', { name: MF.t('crop.' + crop), n: sold }) + ' +' + sold * price, 'coin');
+    MF.audio.play('coin');
   }
 
   function areaTargets(index, action) {
@@ -1015,7 +1041,7 @@
 
   function freshWorker(cfg) {
     return {
-      id: cfg.id, home: cfg.home, x: cfg.home.x, y: cfg.home.y, dir: 'down', state: 'idle', path: [], task: null, stand: null,
+      id: cfg.id, home: cfg.home, stroll: cfg.stroll, x: cfg.home.x, y: cfg.home.y, dir: 'down', state: 'idle', path: [], task: null, stand: null,
       tool: null, actT: 0, hit: false, step: 0, idleT: 0, rest: 0
     };
   }
@@ -1047,6 +1073,7 @@
   function workerTasks(w) {
     const s = G.state;
     if (w.hand) return handTasks(w.hand);
+    if (w.stroll) return [];
     if (w.id === 'henhand') {
       return s.eggs.map(function (egg) { return { type: 'egg', egg: egg, x: egg.x, y: egg.y }; });
     }
@@ -1084,6 +1111,11 @@
     w.rest = rest;
   }
 
+  function strollSpot(zone) {
+    const spot = nearestFree(rand(zone.x, zone.x + zone.w), rand(zone.y, zone.y + zone.h));
+    return { x: spot.x, y: spot.y, dir: 'down' };
+  }
+
   function workerCollect(w) {
     const task = w.task;
     if (!taskValid(task)) return;
@@ -1108,6 +1140,7 @@
       w.step += dt * 9;
       if (w.path.length) return;
       if (w.stand.dir) w.dir = w.stand.dir;
+      if (!w.task && w.stroll) return restWorker(w, rand(C.strollRest[0], C.strollRest[1]));
       if (!w.task || !taskValid(w.task)) return restWorker(w, 0);
       w.tool = workerTool(w.task);
       w.state = 'act';
@@ -1121,6 +1154,7 @@
     const task = nearestTask(w);
     if (task) return sendWorker(w, task, standFor(task, w));
     if (w.hand) return;
+    if (w.stroll) return sendWorker(w, null, strollSpot(w.stroll));
     if (Math.abs(w.x - w.home.x) > 1 || Math.abs(w.y - w.home.y) > 1) sendWorker(w, null, { x: w.home.x, y: w.home.y, dir: 'down' });
   }
 
@@ -1186,9 +1220,13 @@
     return need && !G.state.up[need] ? need : null;
   };
 
+  G.staffMissing = function (id) {
+    return Math.max(0, (upById[id].staff || 0) - staffCount());
+  };
+
   G.canBuy = function (id) {
     const next = G.nextLevelOf(id);
-    return !!next && !G.missingFor(id) && G.state.level >= next.level && G.state.coins >= next.cost;
+    return !!next && !G.missingFor(id) && !G.staffMissing(id) && G.state.level >= next.level && G.state.coins >= next.cost;
   };
 
   G.canBuyAny = function () {
@@ -1271,9 +1309,7 @@
   G.deliver = function (index) {
     const o = G.state.orders[index];
     if (!orderReady(o)) return MF.audio.play('error');
-    const count = orderLeft(o);
-    takeStock(o.item, count);
-    completeOrder(index, count * priceOf(itemInfo(o.item)));
+    deliverOrder(index);
     G.save();
   };
 
@@ -1553,6 +1589,7 @@
     const s = G.state;
     const day = dayIndex();
     if (s.daily && s.daily.day === day) return;
+    if (s.daily) runManager();
     const crop = (s.daily && s.daily.next) || pickDaily(s.daily ? s.daily.crop : null);
     if (!crop) return;
     s.daily = { day: day, crop: crop };
