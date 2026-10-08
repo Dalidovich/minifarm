@@ -423,8 +423,6 @@
 
   function runManager() {
     const s = G.state;
-    if (!s.up.manager) return;
-    s.daily.managed = true;
     manageItem(s.daily.crop, 'toast.manager');
     Object.keys(C.products).filter(sellsProduct).forEach(function (id) { manageItem(id, 'toast.managerGoods'); });
   }
@@ -1684,7 +1682,6 @@
     const s = G.state;
     const day = dayIndex();
     if (s.daily && s.daily.day === day) return;
-    if (s.daily && !s.daily.managed) runManager();
     const crop = (s.daily && s.daily.next) || pickDaily(s.daily ? s.daily.crop : null, posterGroup(day));
     if (!crop) return;
     s.daily = { day: day, crop: crop };
@@ -1694,8 +1691,10 @@
 
   function updateManager() {
     const s = G.state;
-    if (!s.daily || s.daily.managed) return;
-    if ((s.time % C.dayLength) / C.dayLength < C.managerPhase) return;
+    if (!s.up.manager || !s.daily) return;
+    const slot = Math.floor(s.time * C.managerRunsPerDay[s.up.manager] / C.dayLength);
+    if (s.managerSlot === slot) return;
+    s.managerSlot = slot;
     runManager();
   }
 

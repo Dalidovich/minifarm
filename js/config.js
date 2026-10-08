@@ -58,7 +58,7 @@ MF.config = {
   barnCapacity: [0, 30, 70, 150, 300],
   dailyBonus: [1.5, 1.75, 2],
   insiderPhase: 0.75,
-  managerPhase: 23.5 / 24,
+  managerRunsPerDay: [0, 24, 48, 48],
   night: [0.67, 0.96],
   nightGrow: 1.25,
   bees: {
