@@ -60,6 +60,7 @@ MF.config = {
   dailyBonus: [1.5, 1.75, 2],
   dailyPool: 4,
   insiderPhase: 0.75,
+  managerPhase: 23.5 / 24,
   night: [0.67, 0.96],
   nightGrow: 1.25,
   bees: {
