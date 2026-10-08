@@ -386,6 +386,7 @@
     const s = G.state;
     const crop = s.daily.crop;
     if (!s.up.manager) return;
+    s.daily.managed = true;
     s.orders.forEach(function (o, i) {
       if (s.up.manager > 1 && o.item === crop && orderReady(o)) deliverOrder(i);
     });
@@ -1607,12 +1608,19 @@
     const s = G.state;
     const day = dayIndex();
     if (s.daily && s.daily.day === day) return;
-    if (s.daily) runManager();
+    if (s.daily && !s.daily.managed) runManager();
     const crop = (s.daily && s.daily.next) || pickDaily(s.daily ? s.daily.crop : null);
     if (!crop) return;
     s.daily = { day: day, crop: crop };
     if (quiet) return;
     MF.ui.toast(MF.t('toast.daily', { name: MF.t('crop.' + crop), pct: Math.round((dailyBonus() - 1) * 100) }), crop);
+  }
+
+  function updateManager() {
+    const s = G.state;
+    if (!s.daily || s.daily.managed) return;
+    if ((s.time % C.dayLength) / C.dayLength < C.managerPhase) return;
+    runManager();
   }
 
   function updateInsider(quiet) {
@@ -1707,6 +1715,7 @@
     const quiet = dt > 5;
     s.time += dt;
     updateDaily(quiet);
+    updateManager();
     updateInsider(quiet);
     if (!quiet) updateWeather(dt);
     updatePlots(dt, quiet);
