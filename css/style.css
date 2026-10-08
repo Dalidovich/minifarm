@@ -863,6 +863,22 @@ img.sil {
   margin-top: 3px;
 }
 
+.item.rule {
+  grid-column: 1 / -1;
+}
+
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.modes .btn {
+  padding: 3px 8px;
+  font-size: 13px;
+}
+
 .pick {
   display: flex;
   align-items: center;

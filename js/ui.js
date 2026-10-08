@@ -267,11 +267,37 @@
       '</div></div>';
   }
 
-  function managerHtml() {
+  function policyIcon(id) {
+    const daily = G.state.daily;
+    if (id === 'daily') return daily ? ico(daily.crop) : img(S.shopIcons.sign);
+    return img(S.shopIcons[id === 'orders' ? 'market' : 'barn']);
+  }
+
+  function ruleHtml(rule) {
+    const mode = G.state.policy[rule.id];
+    const key = 'manager.' + rule.id + '.';
+    const modes = rule.modes.map(function (item) {
+      return '<button class="btn' + (item === mode ? ' green' : '') + '" data-rule="' + rule.id + '" data-mode="' + item + '">' +
+        t(key + item) + '</button>';
+    }).join('');
+    return '<div class="item rule">' +
+      '<div class="i-icon">' + policyIcon(rule.id) + '</div>' +
+      '<div class="i-text"><div class="i-name">' + t('manager.' + rule.id) + '</div>' +
+      '<div class="i-desc">' + t(key + mode + '.desc') + '</div>' +
+      '<div class="modes">' + modes + '</div></div></div>';
+  }
+
+  function goodsHtml() {
+    if (!G.managesGoods()) return '';
     const goods = G.policyGoods();
+    const rows = goods.length ? goods.map(policyHtml) : ['<div class="barn-facts"><span>' + t('manager.empty') + '</span></div>'];
+    return statGroupHtml('manager.goods', '', rows);
+  }
+
+  function managerHtml() {
     return '<div class="p-head"><span>' + t('manager') + '</span><button class="p-x" data-close>×</button></div>' +
-      '<div class="p-list"><div class="barn-facts"><span>' + t(goods.length ? 'manager.note' : 'manager.empty') + '</span></div>' +
-      goods.map(policyHtml).join('') + '</div>';
+      '<div class="p-list"><div class="barn-facts"><span>' + t('manager.note') + '</span></div>' +
+      G.policyRules().map(ruleHtml).join('') + goodsHtml() + '</div>';
   }
 
   function relicHtml(relic) {
@@ -453,6 +479,10 @@
     if (target.dataset.ticket) {
       G.buyTicket(target.dataset.ticket, target.dataset.group);
       cache.hotbar = null;
+      return renderModal();
+    }
+    if (target.dataset.rule) {
+      G.setPolicyMode(target.dataset.rule, target.dataset.mode);
       return renderModal();
     }
     if (target.dataset.policy) {

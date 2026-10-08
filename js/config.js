@@ -59,6 +59,12 @@ MF.config = {
   dailyBonus: [1.5, 1.75, 2],
   insiderPhase: 0.75,
   managerRunsPerDay: [0, 24, 48, 48],
+  managerPolicy: [
+    { id: 'daily', level: 1, modes: ['reserve', 'surplus', 'all', 'none'] },
+    { id: 'orders', level: 2, modes: ['daily', 'any', 'none'] },
+    { id: 'overflow', level: 1, modes: ['off', 'on'] }
+  ],
+  managerGoodsLevel: 3,
   night: [0.67, 0.96],
   nightGrow: 1.25,
   bees: {
