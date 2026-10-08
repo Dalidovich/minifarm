@@ -222,10 +222,19 @@
       rows.map(function (row, i) { return auditRowHtml(report, row, i); }).join('') + '</div>';
   }
 
+  function rentHtml(u) {
+    const s = G.state;
+    if (!u.rent) return '';
+    if (s.rent[u.id]) return '<div class="tag done rent">' + t('rent.left', { time: durationText(G.rentLeft(u.id)) }) + '</div>';
+    const cost = G.rentCost(u.id);
+    return '<button class="btn buy' + (s.coins < cost ? ' poor' : '') + '" data-rent="' + u.id + '" title="' +
+      t('rent.tip', { time: durationText(C.rentLength) }) + '">' + t('rent.take') + ' ' + ico('coin', 'tiny') + cost + '</button>';
+  }
+
   function shopHtml() {
     const s = G.state;
     const items = C.upgrades.map(function (u) {
-      const lvl = s.up[u.id];
+      const lvl = G.ownedLevel(u.id);
       const next = u.levels[lvl];
       const missing = G.missingFor(u.id);
       const staff = G.staffMissing(u.id);
@@ -236,6 +245,7 @@
         for (let i = 0; i < u.levels.length; i++) pips += '<i class="' + (i < lvl ? 'on' : '') + '"></i>';
       }
       let action;
+      let rent = '';
       if (!next) action = '<div class="tag done">' + t('shop.max') + '</div>';
       else if (s.level < next.level) action = '<div class="tag lock">' + t('lvlReq', { n: next.level }) + '</div>';
       else if (missing) action = '<div class="tag lock need">' + t('shop.needs', { name: t('up.' + missing + '.name') }) + '</div>';
@@ -243,14 +253,16 @@
       else {
         action = '<button class="btn green buy' + (s.coins < next.cost ? ' poor' : '') + '" data-buy="' + u.id + '">' +
           ico('coin', 'tiny') + next.cost + '</button>';
+        rent = rentHtml(u);
       }
       const manage = u.id === 'hands' ? s.hands.length > 0 : u.id === 'manager' && G.hasPolicy();
+      action += rent;
       if (manage) action += '<button class="btn" data-open="' + u.id + '">' + t(u.id + '.manage') + '</button>';
       return '<div class="item' + (!next ? ' maxed' : '') + '">' +
         '<div class="i-icon">' + img(S.shopIcons[u.id]) + '</div>' +
         '<div class="i-text"><div class="i-name">' + t(nameKey) + '</div><div class="pips">' + pips + '</div>' +
         '<div class="i-desc">' + t(descKey) + '</div></div>' +
-        '<div class="i-act' + (manage ? ' sell' : '') + '">' + action + '</div></div>';
+        '<div class="i-act' + (manage || rent ? ' sell' : '') + '">' + action + '</div></div>';
     }).join('');
     return '<div class="p-head"><span>' + t('shop') + '</span><span class="p-coins">' + ico('coin') + s.coins +
       '</span><button class="p-x" data-close>×</button></div><div class="p-list">' +
@@ -294,7 +306,8 @@
     return '<div class="item hand' + (shape ? '' : ' missing') + '">' +
       '<div class="i-icon">' + img(S.shopIcons.hands) + '</div>' +
       '<div class="i-text"><div class="i-name">' + t('hands.name', { n: i + 1 }) + ' · ' +
-      (shape ? t('hands.zone', { w: shape[0], h: shape[1] }) : t('hands.idle')) + '</div>' +
+      (shape ? t('hands.zone', { w: shape[0], h: shape[1] }) : t('hands.idle')) +
+      (hand.rented ? ' · ' + t('rent.left', { time: durationText(G.rentLeft('hands')) }) : '') + '</div>' +
       '<div class="crops">' + crops + '</div></div>' +
       '<div class="i-act"><button class="btn' + (shape ? '' : ' green') + '" data-place="' + i + '">' +
       t(shape ? 'hands.move' : 'hands.place') + '</button></div></div>';
@@ -399,7 +412,7 @@
   function statsHtml() {
     const s = G.state;
     const st = s.stats;
-    const bought = C.upgrades.reduce(function (sum, u) { return sum + s.up[u.id]; }, 0);
+    const bought = C.upgrades.reduce(function (sum, u) { return sum + G.ownedLevel(u.id); }, 0);
     const levels = C.upgrades.reduce(function (sum, u) { return sum + u.levels.length; }, 0);
     const farm = [
       statHtml(S.icons.sun, 'stats.days', Math.floor(s.time / C.dayLength) + 1),
@@ -466,6 +479,7 @@
   function renderModal() {
     if (!modalKind) return;
     if (modalKind === 'audit' && !G.hasAudit(auditDay)) return closeModal();
+    if (modalKind === 'manager' && !G.hasPolicy()) return closeModal();
     const list = el.panel.querySelector('.p-list');
     const scroll = list ? list.scrollTop : 0;
     const before = cache.panel;
@@ -522,11 +536,13 @@
       MF.audio.play('click');
       return closeModal();
     }
-    if (target.dataset.buy) {
-      const bought = G.buy(target.dataset.buy);
+    const deal = target.dataset.buy || target.dataset.rent;
+    if (deal) {
+      const kept = !!G.state.rent[deal];
+      const done = target.dataset.buy ? G.buy(deal) : G.rent(deal);
       cache.hotbar = null;
-      if (bought && target.dataset.buy === 'hands') return startPlacing(G.state.hands.length - 1);
-      if (bought && target.dataset.buy === 'manager' && G.hasPolicy()) return openModal('manager');
+      if (done && !kept && deal === 'hands') return startPlacing(G.state.hands.length - 1);
+      if (done && !kept && deal === 'manager' && G.hasPolicy()) return openModal('manager');
       return renderModal();
     }
     if (target.dataset.ticket) {
@@ -735,6 +751,7 @@
   };
 
   U.refresh = function () {
+    if (placing && !G.state.hands[placing.index]) placing = null;
     refreshStats();
     setHtml('hotbar', el.hotbar, hotbarHtml());
     setHtml('orders', $('orders'), ordersHtml());

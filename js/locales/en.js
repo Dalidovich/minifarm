@@ -91,6 +91,7 @@ MF.locales.en = {
   'toast.set': 'Collection complete: {name}!',
   'toast.duckling': 'A duckling hatched! Find chance is now {pct}%.',
   'toast.done': 'The farm is complete. It is beautiful. Stay as long as you like.',
+  'toast.rentEnd': 'The rental is over: {name}.',
 
   'hint.dig': 'Click a patch of grass inside the frame to dig a bed.',
   'hint.plant': 'Now click the bed to plant seeds.',
@@ -125,6 +126,9 @@ MF.locales.en = {
   'shop.max': 'Done',
   'shop.needs': 'Needs: {name}',
   'shop.needsStaff': 'Workers: {n}/{max}',
+  'rent.take': 'Rent',
+  'rent.left': 'Rented: {time}',
+  'rent.tip': 'For {time}. Then the upgrade is gone and the rent is not refunded.',
   'up.field.name': 'More land',
   'up.field.desc': 'Extra beds for your field.',
   'up.can.name': 'Bigger watering can',
