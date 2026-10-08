@@ -11,7 +11,7 @@
   let drops = [];
   let backTrees = [];
 
-  const R = (MF.render = { hover: null });
+  const R = (MF.render = { hover: null, placing: null });
 
   function rect(g, color, x, y, w, h) {
     g.fillStyle = color;
@@ -239,6 +239,35 @@
     if (!h || h.type !== 'plot') return;
     ctx.fillStyle = h.action ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)';
     h.targets.forEach(function (i) { corners(MF.game.plotPos(i)); });
+  }
+
+  function zoneBox(zone) {
+    const shape = C.handShapes[zone.shape];
+    return { x: C.field.x + zone.col * C.tile, y: C.field.y + zone.row * C.tile, w: shape[0] * C.tile, h: shape[1] * C.tile };
+  }
+
+  function zoneFrame(zone, color) {
+    const b = zoneBox(zone);
+    rect(ctx, color, b.x, b.y, b.w, 1);
+    rect(ctx, color, b.x, b.y + b.h - 1, b.w, 1);
+    rect(ctx, color, b.x, b.y, 1, b.h);
+    rect(ctx, color, b.x + b.w - 1, b.y, 1, b.h);
+  }
+
+  function drawZones(s) {
+    const placing = R.placing;
+    const h = R.hover;
+    if (!placing) {
+      if (h && h.type === 'hand') zoneFrame(s.hands[h.index].zone, '#f7d04a');
+      return;
+    }
+    s.hands.forEach(function (hand, i) {
+      if (hand.zone && i !== placing.index) zoneFrame(hand.zone, 'rgba(255,255,255,0.6)');
+    });
+    if (!placing.zone) return;
+    const b = zoneBox(placing.zone);
+    rect(ctx, placing.ok ? 'rgba(164,222,106,0.4)' : 'rgba(217,72,59,0.45)', b.x, b.y, b.w, b.h);
+    zoneFrame(placing.zone, placing.ok ? '#fff7e6' : '#ff9a85');
   }
 
   function corners(p) {
@@ -632,6 +661,7 @@
     drawPlots(s);
     drawQueue();
     drawHover();
+    drawZones(s);
     const items = [];
     staticItems(s, items);
     treeItems(s, items);

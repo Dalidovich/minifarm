@@ -25,6 +25,8 @@ MF.config = {
   farmerSpeed: [70, 90, 115],
   workerSpeed: 45,
   workerRest: 1.5,
+  handRest: 0.5,
+  handShapes: [[2, 2], [4, 1], [1, 4]],
   workers: [
     { id: 'henhand', home: { x: 330, y: 126 } },
     { id: 'picker', home: { x: 304, y: 182 } }
@@ -123,6 +125,13 @@ MF.config = {
     { id: 'tool', levels: [{ cost: 150, level: 2 }, { cost: 2000, level: 5 }] },
     { id: 'fert', levels: [{ cost: 80, level: 2 }, { cost: 300, level: 3 }, { cost: 1000, level: 5 }, { cost: 3000, level: 6 }, { cost: 8000, level: 8 }] },
     { id: 'sprinkler', levels: [{ cost: 5000, level: 7 }] },
+    {
+      id: 'hands',
+      levels: [
+        { cost: 800, level: 3 }, { cost: 1200, level: 4 }, { cost: 1800, level: 4 }, { cost: 2600, level: 5 }, { cost: 3600, level: 5 },
+        { cost: 5000, level: 6 }, { cost: 7000, level: 6 }, { cost: 9500, level: 7 }, { cost: 13000, level: 7 }, { cost: 18000, level: 8 }
+      ]
+    },
     { id: 'seeds', levels: [{ cost: 150, level: 2 }, { cost: 900, level: 4 }, { cost: 4000, level: 6 }] },
     { id: 'barn', levels: [{ cost: 100, level: 2 }, { cost: 500, level: 3 }, { cost: 2000, level: 5 }, { cost: 7000, level: 7 }] },
     { id: 'market', levels: [{ cost: 350, level: 3 }, { cost: 1800, level: 5 }, { cost: 7000, level: 7 }] },

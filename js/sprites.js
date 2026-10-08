@@ -1415,6 +1415,10 @@
     picker: farmerSets({
       hat: '#6dbf4b', hatDark: '#4f9a3f', band: '#fff7e6', hair: '#3b2a22',
       shirt: '#f2cf5b', overalls: '#4f9a3f', overallsDark: '#3a7a30'
+    }),
+    hand: farmerSets({
+      hat: '#e8b25a', hatDark: '#c28a3a', band: '#4f9a3f', hair: '#a8703a',
+      shirt: '#fff7e6', overalls: '#8a5fb5', overallsDark: '#6a4590'
     })
   };
   S.farmerAnchorY = FARMER_OY + 20;
@@ -1426,6 +1430,7 @@
     tool: S.icons.hoe,
     fert: S.icons.bag,
     sprinkler: S.icons.sprinkler,
+    hands: S.workers.hand.down.idle[0],
     seeds: S.icons.seeds,
     barn: S.barn,
     market: S.icons.market,
