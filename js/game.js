@@ -1391,7 +1391,11 @@
 
   G.ticketCost = function (id, group) { return serviceCost(ticketById[id].rate, group); };
 
-  function hasAudit(day) { return day >= dayIndex() && G.state.audits.indexOf(day) >= 0; }
+  function auditFor(day) {
+    return G.state.audits.filter(function (report) { return report.day === day; })[0] || null;
+  }
+
+  function hasAudit(day) { return day >= dayIndex() && !!auditFor(day); }
 
   function auditCrop(day) {
     const daily = G.state.daily;
@@ -1458,13 +1462,13 @@
     return { count: harvests * crew.cells, profit: profit * crew.cells };
   }
 
-  G.audit = function (day) {
+  function auditRows(day) {
     const from = Math.max(G.state.time, day * C.dayLength);
     const end = (day + 1) * C.dayLength;
     const daily = auditCrop(day);
     const team = crews();
     return openCrops().map(function (crop) {
-      const row = { crop: crop, daily: crop.id === daily, grow: growDuration(crop.time, crop.id, from), count: 0, profit: 0 };
+      const row = { crop: crop.id, daily: crop.id === daily, grow: growDuration(crop.time, crop.id, from), count: 0, profit: 0 };
       team.forEach(function (crew) {
         const part = auditCrew(crew, crop, row.daily, from, end);
         row.count += part.count;
@@ -1473,7 +1477,12 @@
       row.profit = Math.round(row.profit);
       return row;
     }).sort(function (a, b) { return b.profit - a.profit; });
-  };
+  }
+
+  function makeAudit(day) {
+    const size = fieldSize();
+    return { day: day, plots: size[0] * size[1], bonus: dailyBonus(), rows: auditRows(day) };
+  }
 
   G.auditCost = function () { return serviceCost(C.accountant.rate); };
 
@@ -1489,7 +1498,7 @@
       return false;
     }
     spend(G.auditCost());
-    s.audits = s.audits.filter(function (owned) { return owned >= dayIndex(); }).concat(day);
+    s.audits = s.audits.filter(function (report) { return report.day >= dayIndex(); }).concat(makeAudit(day));
     MF.audio.play('buy');
     G.save();
     return true;
@@ -2056,6 +2065,7 @@
   G.dayIndex = dayIndex;
   G.hasAudit = hasAudit;
   G.auditOpen = auditOpen;
+  G.auditFor = auditFor;
   G.seedCost = seedCost;
   G.growTime = function (crop) { return crop.time / growSpeed(crop.id); };
   G.itemInfo = itemInfo;
