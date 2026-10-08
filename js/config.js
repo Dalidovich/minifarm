@@ -128,8 +128,8 @@ MF.config = {
     {
       id: 'hands',
       levels: [
-        { cost: 800, level: 3 }, { cost: 1200, level: 4 }, { cost: 1800, level: 4 }, { cost: 2600, level: 5 }, { cost: 3600, level: 5 },
-        { cost: 5000, level: 6 }, { cost: 7000, level: 6 }, { cost: 9500, level: 7 }, { cost: 13000, level: 7 }, { cost: 18000, level: 8 }
+        { cost: 600, level: 3 }, { cost: 900, level: 4 }, { cost: 1400, level: 4 }, { cost: 2000, level: 5 }, { cost: 2800, level: 5 },
+        { cost: 3800, level: 6 }, { cost: 5200, level: 6 }, { cost: 7000, level: 7 }, { cost: 9500, level: 7 }, { cost: 13000, level: 8 }
       ]
     },
     { id: 'seeds', levels: [{ cost: 150, level: 2 }, { cost: 900, level: 4 }, { cost: 4000, level: 6 }] },
