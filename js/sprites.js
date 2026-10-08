@@ -345,6 +345,20 @@
       '............',
       '............'
     ],
+    shovel: [
+      '.........kkk',
+      '........kbbk',
+      '.......kbkk.',
+      '......kbk...',
+      '.....kbk....',
+      '....kbk.....',
+      '.kkkbk......',
+      'kssskk......',
+      'ksssSk......',
+      'kssSSk......',
+      '.kSSk.......',
+      '..kk........'
+    ],
     bag: [
       '............',
       '...kk..kk...',
@@ -1290,6 +1304,12 @@
     } else if (o.tool === 'hoe') {
       [[13, 12], [14, 13], [14, 14], [15, 15], [15, 16], [16, 17]].forEach(function (p) { U(F.wood, p[0], p[1], 1, 1); });
       L(F.metal, 15, 18, 3, 2);
+    } else if (o.tool === 'shovel' && raised) {
+      U(F.wood, 13, 0, 1, 10);
+      U(F.metal, 12, -4, 3, 4);
+    } else if (o.tool === 'shovel') {
+      [[13, 12], [14, 13], [14, 14], [15, 15], [15, 16]].forEach(function (p) { U(F.wood, p[0], p[1], 1, 1); });
+      L(F.metal, 15, 17, 3, 3);
     } else if (o.tool === 'can' && raised) {
       U(F.can, 13, 9, 4, 4);
       U(F.canDark, 13, 12, 4, 1);
@@ -1386,7 +1406,7 @@
     if (dir !== 'up') set.idle.push(farmerFrame(dir, { blink: true }));
     if (side) {
       set.act = {};
-      ['hoe', 'can', 'seed'].forEach(function (tool) {
+      ['hoe', 'can', 'seed', 'shovel'].forEach(function (tool) {
         set.act[tool] = [farmerFrame(dir, { arm: 'up', tool: tool }), farmerFrame(dir, { arm: 'down', tool: tool, bob: 1 })];
       });
       set.act.grab = [farmerFrame(dir, { arm: 'down', bob: 1 }), farmerFrame(dir, { arm: 'up', tool: 'grab' })];
@@ -1432,6 +1452,7 @@
     boots: S.icons.boot,
     can: S.icons.can,
     tool: S.icons.hoe,
+    shovel: S.icons.shovel,
     fert: S.icons.bag,
     sprinkler: S.icons.sprinkler,
     hands: S.workers.hand.down.idle[0],

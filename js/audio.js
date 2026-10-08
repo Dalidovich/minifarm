@@ -61,6 +61,7 @@
     till: function () { noise(0.14, 0.5, 500); tone(110, 0.1, 'triangle', 0.2); },
     plant: function () { tone(520, 0.08, 'triangle', 0.22); tone(700, 0.09, 'triangle', 0.18, 0.06); },
     water: function () { noise(0.3, 0.25, 2600); noise(0.2, 0.15, 4200, 0.08); },
+    uproot: function () { noise(0.16, 0.45, 380); tone(150, 0.12, 'triangle', 0.2, 0.03, 90); },
     harvest: function () { tone(660, 0.09, 'triangle', 0.25); tone(990, 0.14, 'triangle', 0.22, 0.07); },
     coin: function () { tone(988, 0.06, 'square', 0.07); tone(1319, 0.16, 'square', 0.07, 0.06); },
     egg: function () { tone(880, 0.06, 'sine', 0.25); tone(1175, 0.1, 'sine', 0.2, 0.05); },

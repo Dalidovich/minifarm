@@ -26,7 +26,8 @@
 
   const CELL = C.walk.cell;
   const QUEUE_LIMIT = 80;
-  const TOOL_BY_ACTION = { till: 'hoe', plant: 'seed', water: 'can', harvest: 'grab' };
+  const TOOL_BY_ACTION = { till: 'hoe', plant: 'seed', water: 'can', harvest: 'grab', uproot: 'shovel' };
+  const SHOVEL = 'shovel';
 
   function rand(a, b) { return a + Math.random() * (b - a); }
   function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
@@ -38,7 +39,7 @@
 
   function freshStats() {
     return {
-      earned: 0, spent: 0, played: 0, items: {}, tilled: 0, planted: 0, watered: 0, golden: 0, pollinated: 0,
+      earned: 0, spent: 0, played: 0, items: {}, tilled: 0, planted: 0, watered: 0, uprooted: 0, golden: 0, pollinated: 0,
       orders: 0, fireflies: 0, gifts: 0, pets: 0, hats: 0
     };
   }
@@ -203,6 +204,15 @@
     if (plot.growth >= cropById[plot.crop].time) return 'harvest';
     if (!G.state.up.sprinkler && plot.wet < wetDuration() * 0.5) return 'water';
     return null;
+  }
+
+  function isDigging() { return G.state.selected === SHOVEL; }
+
+  function playerAction(plot, dig) {
+    if (!dig) return plotAction(plot);
+    if (plot.kind === 'soil') return null;
+    if (plot.kind === 'crop' && plot.growth < cropById[plot.crop].time) return 'uproot';
+    return plotAction(plot);
   }
 
   function warn(key, x, y) {
@@ -387,7 +397,7 @@
     MF.audio.play('coin');
   }
 
-  function areaTargets(index, action) {
+  function areaTargets(index, action, dig) {
     const s = G.state;
     const col = index % C.field.cols;
     const row = Math.floor(index / C.field.cols);
@@ -397,7 +407,7 @@
       const r = row + d[1];
       if (!isUnlocked(c, r)) return;
       const j = r * C.field.cols + c;
-      if (plotAction(s.plots[j]) === action) out.push(j);
+      if (playerAction(s.plots[j], dig) === action) out.push(j);
     });
     return out;
   }
@@ -446,8 +456,9 @@
     const row = Math.floor((y - C.field.y) / C.tile);
     if (isUnlocked(col, row)) {
       const index = row * C.field.cols + col;
-      const action = plotAction(s.plots[index]);
-      return { type: 'plot', index: index, action: action, targets: action ? areaTargets(index, action) : [index] };
+      const dig = isDigging();
+      const action = playerAction(s.plots[index], dig);
+      return { type: 'plot', index: index, action: action, dig: dig, targets: action ? areaTargets(index, action, dig) : [index] };
     }
     if (inRect(x, y, C.house)) return { type: 'house' };
     return null;
@@ -492,6 +503,13 @@
         s.stats.watered++;
         plot.wet = wetDuration();
         MF.render.burst(pos.x + 8, pos.y + 6, ['#8fd3f4', '#5bb4e5', '#c9ecfb'], 7);
+      } else if (p.action === 'uproot') {
+        plot.kind = 'soil';
+        plot.crop = null;
+        plot.growth = 0;
+        plot.pollen = false;
+        s.stats.uprooted++;
+        MF.render.burst(pos.x + 8, pos.y + 8, ['#9a6b3f', '#7dbd57', '#4f9a3f'], 8);
       } else if (p.action === 'harvest') {
         const crop = cropById[plot.crop];
         const golden = Math.random() < C.luckChance[s.up.clover] + perk('luck');
@@ -918,7 +936,7 @@
 
   function taskValid(task) {
     const s = G.state;
-    if (task.type === 'plot') return plotAction(s.plots[task.index]) !== null;
+    if (task.type === 'plot') return playerAction(s.plots[task.index], task.dig) !== null;
     if (task.type === 'egg') return s.eggs.indexOf(task.egg) >= 0;
     if (task.type === 'tree') return s.trees[task.index].apples > 0;
     if (task.type === 'gift') return !!s.gift;
@@ -957,7 +975,7 @@
     f.action = null;
     f.tool = null;
     if (task.type === 'plot') {
-      f.action = plotAction(s.plots[task.index]);
+      f.action = playerAction(s.plots[task.index], task.dig);
       if (f.action === 'water' && s.water <= 0) {
         G.queue.unshift({ type: 'well' });
         f.task = null;
@@ -976,7 +994,7 @@
     const f = G.farmer;
     const task = f.task;
     if (task.type === 'plot') {
-      applyPlots({ index: task.index, action: f.action, targets: areaTargets(task.index, f.action) }, new Set());
+      applyPlots({ index: task.index, action: f.action, targets: areaTargets(task.index, f.action, task.dig) }, new Set());
     } else if (task.type === 'well') refill();
     else if (task.type === 'tree') pickApples(task.index);
     else if (task.type === 'gift') collectGift();
@@ -1181,7 +1199,7 @@
     if (p.type === 'plot') {
       if (!p.action || stroke.has(p.index)) return;
       stroke.add(p.index);
-      return enqueue({ type: 'plot', index: p.index });
+      return enqueue({ type: 'plot', index: p.index, dig: p.dig });
     }
     if (p.type === 'egg') {
       const egg = s.eggs[p.index];
@@ -1243,7 +1261,7 @@
     s.up[id]++;
     if (id === 'can') s.water = canCapacity();
     if (id === 'trees') s.trees.push({ apples: 0, t: C.appleInterval });
-    if (id === 'hands') s.hands.push({ zone: null, crop: s.selected });
+    if (id === 'hands') s.hands.push({ zone: null, crop: isDigging() ? C.crops[0].id : s.selected });
     if (id === 'barn' && s.up.barn === 1) {
       fitOrders();
       MF.ui.toast(MF.t('toast.barn'), 'crate');
@@ -1265,7 +1283,7 @@
 
   G.selectCrop = function (id) {
     const crop = cropById[id];
-    if (!crop || crop.level > G.state.level) return;
+    if (id === SHOVEL ? !G.state.up.shovel : !crop || crop.level > G.state.level) return;
     G.state.selected = id;
     MF.audio.play('click');
   };

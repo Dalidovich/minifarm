@@ -125,6 +125,7 @@ MF.config = {
     { id: 'can', levels: [{ cost: 40, level: 1 }, { cost: 250, level: 3 }, { cost: 1200, level: 5 }] },
     { id: 'boots', levels: [{ cost: 120, level: 2 }, { cost: 1500, level: 5 }] },
     { id: 'tool', levels: [{ cost: 150, level: 2 }, { cost: 2000, level: 5 }] },
+    { id: 'shovel', levels: [{ cost: 90, level: 2 }] },
     { id: 'fert', levels: [{ cost: 80, level: 2 }, { cost: 300, level: 3 }, { cost: 1000, level: 5 }, { cost: 3000, level: 6 }, { cost: 8000, level: 8 }] },
     { id: 'sprinkler', levels: [{ cost: 5000, level: 7 }] },
     {
