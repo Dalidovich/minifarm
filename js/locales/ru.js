@@ -16,6 +16,10 @@ MF.locales.ru = {
   'lvlReq': 'Уровень {n}',
   'lvlShort': 'Ур. {n}',
   'sellsFor': 'продаётся за',
+  'growsIn': 'растёт {time}',
+  'time.sec': '{s} с',
+  'time.min': '{m} мин',
+  'time.minSec': '{m} мин {s} с',
   'daily.tip': 'Культура дня: +{pct}%',
   'daily.next': 'Культура дня завтра',
 

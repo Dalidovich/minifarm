@@ -85,6 +85,14 @@
     });
   }
 
+  function durationText(seconds) {
+    const total = Math.ceil(seconds);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    if (!m) return t('time.sec', { s: s });
+    return s ? t('time.minSec', { m: m, s: s }) : t('time.min', { m: m });
+  }
+
   function hotbarHtml() {
     const s = G.state;
     return C.crops.map(function (crop) {
@@ -102,6 +110,7 @@
         (daily ? '<span class="mark">' + ico('star', 'tiny') + '</span>' : '') +
         (next ? '<span class="mark">' + ico('insider', 'tiny') + '</span>' : '') +
         '<span class="tip">' + name + '<br>' + t('sellsFor') + ' ' + ico('coin', 'tiny') + G.priceOf(crop) +
+        '<br>' + t('growsIn', { time: durationText(G.growTime(crop)) }) +
         (daily ? '<br><span class="good">' + t('daily.tip', { pct: Math.round((G.dailyBonus() - 1) * 100) }) + '</span>' : '') +
         (next ? '<br><span class="good">' + t('daily.next') + '</span>' : '') + '</span></button>';
     }).join('');
