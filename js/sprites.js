@@ -1416,6 +1416,10 @@
       hat: '#6dbf4b', hatDark: '#4f9a3f', band: '#fff7e6', hair: '#3b2a22',
       shirt: '#f2cf5b', overalls: '#4f9a3f', overallsDark: '#3a7a30'
     }),
+    manager: farmerSets({
+      hat: '#3b2a22', hatDark: '#241812', band: '#d9483b', hair: '#3b2a22',
+      shirt: '#fff7e6', overalls: '#3d5a8a', overallsDark: '#2a3f66'
+    }),
     hand: farmerSets({
       hat: '#e8b25a', hatDark: '#c28a3a', band: '#4f9a3f', hair: '#a8703a',
       shirt: '#fff7e6', overalls: '#8a5fb5', overallsDark: '#6a4590'
@@ -1436,6 +1440,7 @@
     market: S.icons.market,
     sign: S.icons.sign,
     insider: S.icons.insider,
+    manager: S.workers.manager.down.idle[0],
     feed: S.icons.feed,
     henhand: S.workers.henhand.down.idle[0],
     shears: S.icons.shears,

@@ -138,6 +138,7 @@
       const lvl = s.up[u.id];
       const next = u.levels[lvl];
       const missing = G.missingFor(u.id);
+      const staff = G.staffMissing(u.id);
       const nameKey = lvl > 0 && MF.i18n.has('up.' + u.id + '.name2') ? 'up.' + u.id + '.name2' : 'up.' + u.id + '.name';
       let pips = '';
       if (u.levels.length > 1) {
@@ -147,6 +148,7 @@
       if (!next) action = '<div class="tag done">' + t('shop.max') + '</div>';
       else if (s.level < next.level) action = '<div class="tag lock">' + t('lvlReq', { n: next.level }) + '</div>';
       else if (missing) action = '<div class="tag lock need">' + t('shop.needs', { name: t('up.' + missing + '.name') }) + '</div>';
+      else if (staff) action = '<div class="tag lock need">' + t('shop.needsStaff', { n: u.staff - staff, max: u.staff }) + '</div>';
       else {
         action = '<button class="btn green buy' + (s.coins < next.cost ? ' poor' : '') + '" data-buy="' + u.id + '">' +
           ico('coin', 'tiny') + next.cost + '</button>';
