@@ -8,6 +8,8 @@
   C.crops.forEach(function (c) { cropById[c.id] = c; });
   const upById = {};
   C.upgrades.forEach(function (u) { upById[u.id] = u; });
+  const ticketById = {};
+  C.tickets.forEach(function (ticket) { ticketById[ticket.id] = ticket; });
 
   const G = (MF.game = {
     state: null, chickens: [], ducks: [], ducklings: [], wish: null, cat: null, bees: [], fireflies: [], hatFlight: 0, farmer: null, workers: [], queue: [],
@@ -70,6 +72,8 @@
       rain: 0,
       rainIn: 420,
       daily: null,
+      request: null,
+      poster: null,
       hat: null,
       gift: null,
       catGiftIn: C.catGift.every[0],
@@ -130,6 +134,13 @@
   function isDaily(id) { return !!G.state.daily && G.state.daily.crop === id; }
   function isNextDaily(id) { return !!G.state.up.insider && !!G.state.daily && G.state.daily.next === id; }
   function dailyBonus() { return C.dailyBonus[G.state.up.sign] + perk('daily'); }
+  function openCrops(group) {
+    return C.crops.filter(function (c) { return c.level <= G.state.level && (!group || c.group === group); });
+  }
+  function posterGroup(day) {
+    const poster = G.state.poster;
+    return poster && poster.day === day ? poster.group : null;
+  }
   function offlineCap() { return C.offlineCap[G.state.up.hammock] * (1 + perk('offline')); }
   function priceOf(item) {
     return Math.round(item.sell * C.houseBonus[G.state.up.house] * (1 + perk('price')) * (isDaily(item.id) ? dailyBonus() : 1));
@@ -275,15 +286,17 @@
   function makeOrder() {
     const s = G.state;
     const taken = s.orders.map(function (o) { return o.item; });
-    let pool = C.crops.filter(function (c) { return c.level <= s.level; }).slice(-4).map(function (c) { return c.id; });
-    if (s.up.coop > 0) pool.push('egg');
-    if (s.up.trees > 0) pool.push('apple');
+    const request = s.request;
+    let pool = openCrops(request && request.group).map(function (c) { return c.id; });
+    if (!request && s.up.coop > 0) pool.push('egg');
+    if (!request && s.up.trees > 0) pool.push('apple');
     const free = pool.filter(function (id) { return taken.indexOf(id) < 0; });
     if (free.length) pool = free;
     const item = pick(pool);
     const info = itemInfo(item);
     const size = fieldSize();
     let need;
+    spendRequest();
     if (item === 'egg') need = randInt(3, 3 + s.up.coop * 2);
     else if (item === 'apple') need = randInt(3, 2 + s.up.trees * 3);
     else need = Math.max(3, Math.round(size[0] * size[1] * rand(0.5, 1.3)));
@@ -295,6 +308,13 @@
       coins: Math.round(need * info.sell * 0.6 * C.orderBonus[s.up.market] * (1 + perk('orders'))),
       xp: Math.max(1, Math.round(need * info.xp * 0.6))
     };
+  }
+
+  function spendRequest() {
+    const s = G.state;
+    if (!s.request) return;
+    s.request.left--;
+    if (s.request.left <= 0) s.request = null;
   }
 
   function progressOrders(item, count) {
@@ -1298,6 +1318,44 @@
     return true;
   };
 
+  function bookPoster(group) {
+    const s = G.state;
+    s.poster = { day: dayIndex() + 1, group: group };
+    if (!s.daily || !s.daily.next || cropById[s.daily.next].group === group) return;
+    s.daily.next = pickDaily(s.daily.crop, group);
+    MF.ui.toast(MF.t('toast.insider', { name: MF.t('crop.' + s.daily.next) }), 'insider');
+  }
+
+  G.ticketCost = function (id, group) {
+    const crops = openCrops(group);
+    const size = fieldSize();
+    const sell = crops.reduce(function (sum, c) { return sum + c.sell; }, 0) / (crops.length || 1);
+    return Math.max(5, Math.round((ticketById[id].rate * sell * size[0] * size[1]) / 5) * 5);
+  };
+
+  G.ticketBusy = function (id) {
+    return id === 'request' ? !!G.state.request : !!posterGroup(dayIndex() + 1);
+  };
+
+  G.canBuyTicket = function (id, group) {
+    const s = G.state;
+    return s.level >= ticketById[id].level && !G.ticketBusy(id) && s.coins >= G.ticketCost(id, group);
+  };
+
+  G.buyTicket = function (id, group) {
+    const s = G.state;
+    if (!G.canBuyTicket(id, group)) {
+      MF.audio.play('error');
+      return false;
+    }
+    spend(G.ticketCost(id, group));
+    if (id === 'request') s.request = { group: group, left: ticketById.request.orders };
+    else bookPoster(group);
+    MF.audio.play('buy');
+    G.save();
+    return true;
+  };
+
   G.selectCrop = function (id) {
     const crop = cropById[id];
     if (id === SHOVEL ? !G.state.up.shovel : !crop || crop.level > G.state.level) return;
@@ -1620,11 +1678,11 @@
     }
   }
 
-  function pickDaily(last) {
-    const s = G.state;
-    const open = C.crops.filter(function (c) { return c.level <= s.level; }).slice(-C.dailyPool);
-    if (open.length < 2) return null;
-    return pick(open.filter(function (c) { return c.id !== last; })).id;
+  function pickDaily(last, group) {
+    if (openCrops().length < 2) return null;
+    const fresh = function (c) { return c.id !== last; };
+    const narrowed = openCrops(group).filter(fresh);
+    return pick(narrowed.length ? narrowed : openCrops().filter(fresh)).id;
   }
 
   function updateDaily(quiet) {
@@ -1632,9 +1690,10 @@
     const day = dayIndex();
     if (s.daily && s.daily.day === day) return;
     if (s.daily && !s.daily.managed) runManager();
-    const crop = (s.daily && s.daily.next) || pickDaily(s.daily ? s.daily.crop : null);
+    const crop = (s.daily && s.daily.next) || pickDaily(s.daily ? s.daily.crop : null, posterGroup(day));
     if (!crop) return;
     s.daily = { day: day, crop: crop };
+    if (s.poster && s.poster.day <= day) s.poster = null;
     if (quiet) return;
     MF.ui.toast(MF.t('toast.daily', { name: MF.t('crop.' + crop), pct: Math.round((dailyBonus() - 1) * 100) }), crop);
   }
@@ -1650,7 +1709,7 @@
     const s = G.state;
     if (!s.up.insider || !s.daily || s.daily.next) return;
     if ((s.time % C.dayLength) / C.dayLength < C.insiderPhase) return;
-    const next = pickDaily(s.daily.crop);
+    const next = pickDaily(s.daily.crop, posterGroup(dayIndex() + 1));
     if (!next) return;
     s.daily.next = next;
     if (quiet) return;
@@ -1834,6 +1893,8 @@
   G.isDaily = isDaily;
   G.isNextDaily = isNextDaily;
   G.dailyBonus = dailyBonus;
+  G.nextPoster = function () { return posterGroup(dayIndex() + 1); };
+  G.openCrops = openCrops;
   G.offlineCap = offlineCap;
   G.seedCost = seedCost;
   G.growTime = function (crop) { return crop.time / growSpeed(crop.id); };

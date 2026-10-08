@@ -596,6 +596,34 @@
       '.kkkkkkkkkk.',
       '............',
       '............'
+    ],
+    request: [
+      '............',
+      '............',
+      '.kkkkkkkkkk.',
+      '.klllgllllk.',
+      '.kllllllllk.',
+      '..kllglllk..',
+      '..kllllllk..',
+      '.klllgllllk.',
+      '.kllllllllk.',
+      '.kkkkkkkkkk.',
+      '............',
+      '............'
+    ],
+    poster: [
+      '............',
+      '............',
+      '.kkkkkkkkkk.',
+      '.kyyyYyyyyk.',
+      '.kyyyyyyyyk.',
+      '..kyyYyyyk..',
+      '..kyyyyyyk..',
+      '.kyyyYyyyyk.',
+      '.kyyyyyyyyk.',
+      '.kkkkkkkkkk.',
+      '............',
+      '............'
     ]
   };
 

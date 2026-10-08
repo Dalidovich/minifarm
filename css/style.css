@@ -260,7 +260,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .stock {
@@ -273,7 +273,7 @@ button {
   font-weight: 600;
 }
 
-.stock:hover {
+button.stock:hover {
   filter: brightness(1.07);
 }
 
@@ -605,6 +605,10 @@ img.sil {
   padding: 6px;
   background: #fff3d1;
   border: 2px solid var(--ink);
+}
+
+.item.wide {
+  grid-column: 1 / -1;
 }
 
 .item.maxed {
